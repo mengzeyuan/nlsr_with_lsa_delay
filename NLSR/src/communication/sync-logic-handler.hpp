@@ -42,6 +42,7 @@ class ConfParameter;
 class Lsdb;
 class SequencingManager;
 class SyncUpdate;
+class MGraph;
 
 class SyncLogicHandler
 {
@@ -109,8 +110,6 @@ private:
   
   std::string m_instanceId;
   static int m_instanceCounter;  //ymz
-
-  
 };
 
 } //namespace nlsr

@@ -29,6 +29,7 @@
 #include "utility/name-helper.hpp"
 #include <boost/lexical_cast.hpp>   //ymz
 #include "ns3/nstime.h"   //ymz
+#include "dijkstra.hpp"   //ymz
 #include <string>
 #include "ns3/simulator.h"
 #ifdef NS3_NLSR_SIM
@@ -217,6 +218,12 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
 {
   ndn::Name originRouter;
   ndn::Name routerName;
+
+  //ymz
+  MGraph g(6, 10);
+  g.Dijkstra(0);
+  //print
+  g.printResult();
 
   try {
     originRouter = update.getOriginRouter();
