@@ -1,0 +1,1346 @@
+diff --git a/nsync/sync-logic.cc b/nsync/sync-logic.cc
+index 900c424..7046f1a 100644
+--- a/nsync/sync-logic.cc
++++ b/nsync/sync-logic.cc
+@@ -88,6 +88,9 @@ SyncLogic::SyncLogic (const Name& syncPrefix,
+   , m_rangeUniformRandom (m_randomGenerator, boost::uniform_int<> (200,1000))
+   , m_reexpressionJitter (m_randomGenerator, boost::uniform_int<> (100,500))
+   , m_recoveryRetransmissionInterval (m_defaultRecoveryRetransmitInterval)
++#ifdef NS3_NLSR_SIM
++  , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+ {
+   m_syncRegisteredPrefixId = m_face->setInterestFilter (m_syncPrefix,
+                                                         bind(&SyncLogic::onSyncInterest,
+@@ -102,6 +105,17 @@ SyncLogic::SyncLogic (const Name& syncPrefix,
+                                                         bind (&SyncLogic::sendSyncInterest, this));
+ 
+   m_instanceId = string("Instance " + boost::lexical_cast<string>(m_instanceCounter++) + " ");
++
++  m_outSyncInterest = 0;
++  m_inSyncData = 0;
++  m_outRecovInterest = 0;
++  m_inRecovData = 0;
++  m_timedOutSyncInterest = 0;
++  m_timedOutRecovInterest = 0;
++  m_inSyncInterest = 0;
++  m_outSyncData = 0;
++  m_inRecovInterest = 0;
++  m_outRecovData = 0;
+ }
+ 
+ SyncLogic::SyncLogic (const Name& syncPrefix,
+@@ -121,6 +135,9 @@ SyncLogic::SyncLogic (const Name& syncPrefix,
+   , m_rangeUniformRandom (m_randomGenerator, boost::uniform_int<> (200,1000))
+   , m_reexpressionJitter (m_randomGenerator, boost::uniform_int<> (100,500))
+   , m_recoveryRetransmissionInterval (m_defaultRecoveryRetransmitInterval)
++#ifdef NS3_NLSR_SIM
++  , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+ {
+   m_syncRegisteredPrefixId = m_face->setInterestFilter (m_syncPrefix,
+                                                         bind(&SyncLogic::onSyncInterest,
+@@ -132,6 +149,17 @@ SyncLogic::SyncLogic (const Name& syncPrefix,
+ 
+   m_reexpressingInterestId = m_scheduler.scheduleEvent (ndn::time::seconds (0),
+                                                         bind (&SyncLogic::sendSyncInterest, this));
++
++  m_outSyncInterest = 0;
++  m_inSyncData = 0;
++  m_outRecovInterest = 0;
++  m_inRecovData = 0;
++  m_timedOutSyncInterest = 0;
++  m_timedOutRecovInterest = 0;
++  m_inSyncInterest = 0;
++  m_outSyncData = 0;
++  m_inRecovInterest = 0;
++  m_outRecovData = 0;
+ }
+ 
+ SyncLogic::~SyncLogic ()
+@@ -191,10 +219,20 @@ SyncLogic::onSyncInterest (const Name& prefix, const ndn::Interest& interest)
+       if (type == "normal") // kind of ineffective...
+         {
+           processSyncInterest (name, digest);
++#ifdef NS3_NLSR_SIM
++          if (m_tracer.IsEnabled()) {
++            m_tracer.NsyncTrace(interest.getName().toUri(), "inSyncInterest", std::to_string(++m_inSyncInterest), std::to_string(interest.wireEncode().size()));
++          }
++#endif
+         }
+       else if (type == "recovery")
+         {
+           processSyncRecoveryInterest (name, digest);
++#ifdef NS3_NLSR_SIM
++          if (m_tracer.IsEnabled()) {
++            m_tracer.NsyncTrace(interest.getName().toUri(), "inRecovInterest", std::to_string(++m_inRecovInterest), std::to_string(interest.wireEncode().size()));
++          }
++#endif
+         }
+     }
+   catch (Error::DigestCalculationError &e)
+@@ -220,6 +258,14 @@ SyncLogic::onSyncRegisterFailed(const Name& prefix, const string& msg)
+ void
+ SyncLogic::onSyncData(const ndn::Interest& interest, Data& data)
+ {
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && data.getName().size() > 4 && data.getName().get(3).toUri().compare("recovery") == 0)
++    m_tracer.NsyncTrace(data.getName().toUri(), "inRecovData", std::to_string(++m_inRecovData), std::to_string(data.wireEncode().size()));
++  else
++    if (m_tracer.IsEnabled()) {
++      m_tracer.NsyncTrace(data.getName().toUri(), "inSyncData", std::to_string(++m_inSyncData), std::to_string(data.wireEncode().size()));
++    }
++#endif
+   OnDataValidated onValidated = bind(&SyncLogic::onSyncDataValidated, this, _1);
+   OnDataValidationFailed onValidationFailed = bind(&SyncLogic::onSyncDataValidationFailed, this, _1);
+   m_validator->validate(data, onValidated, onValidationFailed);
+@@ -229,6 +275,14 @@ void
+ SyncLogic::onSyncTimeout(const ndn::Interest& interest)
+ {
+   // It is OK. Others will handle the time out situation.
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && interest.getName().size() > 4 && interest.getName().get(3).toUri().compare("recovery") == 0)
++    m_tracer.NsyncTrace(interest.getName().toUri(), "timedOutRecovInterest", std::to_string(++m_timedOutRecovInterest), std::to_string(interest.wireEncode().size()));
++  else
++    if (m_tracer.IsEnabled()) {
++      m_tracer.NsyncTrace(interest.getName().toUri(), "timedOutSyncInterest", std::to_string(++m_timedOutSyncInterest), std::to_string(interest.wireEncode().size()));
++    }
++#endif
+ }
+ 
+ void
+@@ -625,6 +679,11 @@ SyncLogic::sendSyncInterest ()
+   m_face->expressInterest(interest,
+                           bind(&SyncLogic::onSyncData, this, _1, _2),
+                           bind(&SyncLogic::onSyncTimeout, this, _1));
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.NsyncTrace(interest.getName().toUri(), "outSyncInterest", std::to_string(++m_outSyncInterest), std::to_string(interest.wireEncode().size()));
++  }
++#endif
+ }
+ 
+ void
+@@ -653,6 +712,11 @@ SyncLogic::sendSyncRecoveryInterests (DigestConstPtr digest)
+   m_face->expressInterest(interest,
+                           bind(&SyncLogic::onSyncData, this, _1, _2),
+                           bind(&SyncLogic::onSyncTimeout, this, _1));
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.NsyncTrace(interest.getName().toUri(), "outRecovInterest", std::to_string(++m_outRecovInterest), std::to_string(interest.wireEncode().size()));
++  }
++#endif
+ }
+ 
+ 
+@@ -683,6 +747,14 @@ SyncLogic::sendSyncData (const Name &name, DigestConstPtr digest, SyncStateMsg &
+   m_keyChain->sign(*syncData);
+ 
+   m_face->put(*syncData);
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && syncData->getName().size() > 4 && syncData->getName().get(3).toUri().compare("recovery") == 0)
++    m_tracer.NsyncTrace(syncData->getName().toUri(), "outRecovData", std::to_string(++m_outRecovData), std::to_string(syncData->wireEncode().size()));
++  else
++    if (m_tracer.IsEnabled()) {
++      m_tracer.NsyncTrace(syncData->getName().toUri(), "outSyncData", std::to_string(++m_outSyncData), std::to_string(syncData->wireEncode().size()));
++    }
++#endif
+ 
+   delete []wireData;
+ 
+diff --git a/nsync/sync-logic.h b/nsync/sync-logic.h
+index 33578fb..d256351 100644
+--- a/nsync/sync-logic.h
++++ b/nsync/sync-logic.h
+@@ -46,6 +46,10 @@
+ #endif
+ #endif
+ 
++#ifdef NS3_NLSR_SIM
++#include "utils/tracers/ndn-nlsr-tracer.hpp"
++#endif
++
+ namespace Sync {
+ 
+ struct MissingDataInfo {
+@@ -215,6 +219,20 @@ private:
+ 
+   std::string m_instanceId;
+   static int m_instanceCounter;
++
++#ifdef NS3_NLSR_SIM
++  ns3::ndn::NlsrTracer &m_tracer;
++  long m_outSyncInterest;
++  long m_inSyncData;
++  long m_outRecovInterest;
++  long m_inRecovData;
++  long m_timedOutSyncInterest;
++  long m_timedOutRecovInterest;
++  long m_inSyncInterest;
++  long m_outSyncData;
++  long m_inRecovInterest;
++  long m_outRecovData;
++#endif
+ };
+ 
+ 
+diff --git a/nsync/sync-socket.cc b/nsync/sync-socket.cc
+index 68eaa7d..2b1b4ae 100644
+--- a/nsync/sync-socket.cc
++++ b/nsync/sync-socket.cc
+@@ -71,8 +71,12 @@ SyncSocket::publishData(const Name &prefix, uint64_t session,
+   data->setContent(reinterpret_cast<const uint8_t*>(buf), len);
+   data->setFreshnessPeriod(ndn::time::seconds(freshness));
+ 
++#ifdef NS3_NLSR_SIM
++  publishDataInternal(data, prefix, session, seq);
++#else
+   m_face->getIoService().post(bind(&SyncSocket::publishDataInternal, this,
+                                    data, prefix, session,seq));
++#endif
+ 
+   return true;
+ }
+diff --git a/src/adjacency-list.cpp b/src/adjacency-list.cpp
+index 88403a9..31e8821 100644
+--- a/src/adjacency-list.cpp
++++ b/src/adjacency-list.cpp
+@@ -273,6 +273,22 @@ AdjacencyList::findAdjacent(uint64_t faceId)
+   return 0;
+ }
+ 
++#ifdef NS3_NLSR_SIM
++Adjacent *
++AdjacencyList::findAdjacent(const std::string& faceUri)
++{
++  std::list<Adjacent>::iterator it = std::find_if(m_adjList.begin(),
++                                                  m_adjList.end(),
++                                                  ndn::bind(&Adjacent::compareFaceUri,
++                                                            _1, faceUri));
++  if (it != m_adjList.end()) {
++    return &(*it);
++  }
++
++  return 0;
++}
++#endif
++
+ uint64_t
+ AdjacencyList::getFaceId(const std::string& faceUri)
+ {
+diff --git a/src/adjacency-list.hpp b/src/adjacency-list.hpp
+index 2325f49..aafe9d1 100644
+--- a/src/adjacency-list.hpp
++++ b/src/adjacency-list.hpp
+@@ -105,6 +105,11 @@ public:
+   Adjacent*
+   findAdjacent(uint64_t faceId);
+ 
++#ifdef NS3_NLSR_SIM
++  Adjacent*
++  findAdjacent(const std::string& faceUri);
++#endif
++
+   uint64_t
+   getFaceId(const std::string& faceUri);
+ 
+diff --git a/src/adjacent.cpp b/src/adjacent.cpp
+index 436e778..e2f1973 100644
+--- a/src/adjacent.cpp
++++ b/src/adjacent.cpp
+@@ -73,6 +73,23 @@ Adjacent::Adjacent(const ndn::Name& an, const std::string& cfu,  double lc,
+ 
+   }
+ 
++#ifdef NS3_NLSR_SIM
++Adjacent::Adjacent(const std::string& simName, const ndn::Name& an, 
++		   const std::string& cfu,  double lc, Status s, 
++		   uint32_t iton, uint64_t faceId)
++    : m_simName(simName)
++    , m_name(an)
++    , m_connectingFaceUri(cfu)
++    , m_linkCost(lc)
++    , m_status(s)
++    , m_interestTimedOutNo(iton)
++    , m_faceId(faceId)
++  {
++
++  }
++
++#endif
++
+ bool
+ Adjacent::operator==(const Adjacent& adjacent) const
+ {
+@@ -85,6 +102,9 @@ Adjacent::operator==(const Adjacent& adjacent) const
+ void
+ Adjacent::writeLog()
+ {
++#ifdef NS3_NLSR_SIM
++  _LOG_DEBUG("Simulated Node Name: " << m_simName);
++#endif
+   _LOG_DEBUG("Adjacent : " << m_name);
+   _LOG_DEBUG("Connecting FaceUri: " << m_connectingFaceUri);
+   _LOG_DEBUG("Link Cost: " << m_linkCost);
+diff --git a/src/adjacent.hpp b/src/adjacent.hpp
+index d12d553..164338d 100644
+--- a/src/adjacent.hpp
++++ b/src/adjacent.hpp
+@@ -48,6 +48,16 @@ public:
+   Adjacent(const ndn::Name& an, const std::string& cfu,  double lc,
+            Status s, uint32_t iton, uint64_t faceId);
+ 
++#ifdef NS3_NLSR_SIM
++  Adjacent(const std::string& simName, const ndn::Name& an, const std::string& cfu,  double lc, Status s, uint32_t iton, uint64_t faceId);
++
++  const std::string&
++  getSimulatedName() const
++  {
++    return m_simName;
++  }
++#endif
++
+   const ndn::Name&
+   getName() const
+   {
+@@ -149,6 +159,9 @@ public:
+   static const float DEFAULT_LINK_COST;
+ 
+ private:
++#ifdef NS3_NLSR_SIM
++  std::string m_simName;
++#endif
+   ndn::Name m_name;
+   std::string m_connectingFaceUri;
+   double m_linkCost;
+diff --git a/src/conf-file-processor.cpp b/src/conf-file-processor.cpp
+index c4cb20b..8fd1f84 100644
+--- a/src/conf-file-processor.cpp
++++ b/src/conf-file-processor.cpp
+@@ -330,7 +330,8 @@ ConfFileProcessor::processConfSectionGeneral(const ConfigSection& section)
+     }
+     else {
+       std::cerr << "Provided log directory <" << logDir << "> does not exist" << std::endl;
+-      return false;
++      std::cerr << "Creating log directory <" << logDir << ">" << std::endl;
++      boost::filesystem::create_directories(logDir);
+     }
+   }
+   catch (const std::exception& ex) {
+@@ -364,7 +365,8 @@ ConfFileProcessor::processConfSectionGeneral(const ConfigSection& section)
+     }
+     else {
+       std::cerr << "Provided sequence directory <" << seqDir << "> does not exist" << std::endl;
+-      return false;
++      std::cerr << "Creating sequence directory <" << seqDir << ">" << std::endl;
++      boost::filesystem::create_directories(seqDir);
+     }
+   }
+   catch (const std::exception& ex) {
+@@ -473,6 +475,9 @@ ConfFileProcessor::processConfSectionNeighbors(const ConfigSection& section)
+     {
+       try {
+         ConfigSection CommandAttriTree = tn->second;
++#ifdef NS3_NLSR_SIM
++        std::string nodeId = CommandAttriTree.get<std::string>("node-id");
++#endif
+         std::string name = CommandAttriTree.get<std::string>("name");
+         std::string faceUri = CommandAttriTree.get<std::string>("face-uri");
+ 
+@@ -487,7 +492,11 @@ ConfFileProcessor::processConfSectionNeighbors(const ConfigSection& section)
+                                                        Adjacent::DEFAULT_LINK_COST);
+         ndn::Name neighborName(name);
+         if (!neighborName.empty()) {
++#ifdef NS3_NLSR_SIM
++          Adjacent adj(nodeId, name, faceUri, linkCost, Adjacent::STATUS_INACTIVE, 0, 0);
++#else
+           Adjacent adj(name, faceUri, linkCost, Adjacent::STATUS_INACTIVE, 0, 0);
++#endif
+           m_nlsr.getAdjacencyList().insert(adj);
+         }
+         else {
+diff --git a/src/hello-protocol.cpp b/src/hello-protocol.cpp
+index b028bb4..324713f 100644
+--- a/src/hello-protocol.cpp
++++ b/src/hello-protocol.cpp
+@@ -26,6 +26,7 @@
+ #include "utility/name-helper.hpp"
+ #ifdef NS3_NLSR_SIM
+ #include "nlsr-logger.hpp"
++#include <string>
+ #else
+ #include "logger.hpp"
+ #endif
+@@ -50,6 +51,11 @@ HelloProtocol::expressInterest(const ndn::Name& interestName, uint32_t seconds)
+                                                  _1, _2),
+                                        ndn::bind(&HelloProtocol::processInterestTimedOut,
+                                                  this, _1));
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.HelloTrace(interestName.toUri(), "outHelloInterest", std::to_string(++m_outInterest), std::to_string(i.wireEncode().size()));
++  }
++#endif
+ }
+ 
+ void
+@@ -94,6 +100,11 @@ HelloProtocol::processInterest(const ndn::Name& name,
+   if (interestName.get(-2).toUri() != INFO_COMPONENT) {
+     return;
+   }
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.HelloTrace(interestName.toUri(), "inHelloInterest", std::to_string(++m_inInterest), std::to_string(interest.wireEncode().size()));
++  }
++#endif
+   ndn::Name neighbor;
+   neighbor.wireDecode(interestName.get(-1).blockFromValue());
+   _LOG_DEBUG("Neighbor: " << neighbor);
+@@ -106,6 +117,11 @@ HelloProtocol::processInterest(const ndn::Name& name,
+     m_nlsr.getKeyChain().sign(*data, m_nlsr.getDefaultCertName());
+     _LOG_DEBUG("Sending out data for name: " << interest.getName());
+     m_nlsr.getNlsrFace().put(*data);
++#ifdef NS3_NLSR_SIM
++    if (m_tracer.IsEnabled()) {
++      m_tracer.HelloTrace(interestName.toUri(), "outHelloData", std::to_string(++m_outData), std::to_string(data->wireEncode().size()));
++    }
++#endif
+     Adjacent *adjacent = m_nlsr.getAdjacencyList().findAdjacent(neighbor);
+     if (adjacent->getStatus() == Adjacent::STATUS_INACTIVE) {
+       if(adjacent->getFaceId() != 0){
+@@ -134,6 +150,11 @@ HelloProtocol::processInterestTimedOut(const ndn::Interest& interest)
+   if (interestName.get(-2).toUri() != INFO_COMPONENT) {
+     return;
+   }
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.HelloTrace(interestName.toUri(), "timedOutHelloInterest", std::to_string(++m_timedOutInterest), std::to_string(interest.wireEncode().size()));
++  }
++#endif
+   ndn::Name neighbor = interestName.getPrefix(-3);
+   _LOG_DEBUG("Neighbor: " << neighbor);
+   m_nlsr.getAdjacencyList().incrementTimedOutInterestCount(neighbor);
+@@ -174,6 +195,12 @@ HelloProtocol::onContent(const ndn::Interest& interest, const ndn::Data& data)
+                                  ndn::bind(&HelloProtocol::onContentValidated, this, _1),
+                                  ndn::bind(&HelloProtocol::onContentValidationFailed,
+                                            this, _1, _2));
++
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled()) {
++    m_tracer.HelloTrace(data.getName().toUri(), "inHelloData", std::to_string(++m_inData), std::to_string(data.wireEncode().size()));
++  }
++#endif
+ }
+ 
+ void
+@@ -207,6 +234,18 @@ HelloProtocol::onContentValidationFailed(const ndn::shared_ptr<const ndn::Data>&
+ }
+ 
+ void
++HelloProtocol::registerPrefixes1(const ndn::Name& adjName, const std::string& faceUri,
++                               double linkCost, const ndn::time::milliseconds& timeout)
++{
++  m_nlsr.getFib().registerPrefix(adjName, faceUri, linkCost, timeout,
++                                 ndn::nfd::ROUTE_FLAG_CAPTURE, 0,
++                                 ndn::bind(&HelloProtocol::onRegistrationSuccess1,
++                                           this, _1, adjName,timeout),
++                                 ndn::bind(&HelloProtocol::onRegistrationFailure,
++                                           this, _1, _2, adjName));
++}
++
++void
+ HelloProtocol::registerPrefixes(const ndn::Name& adjName, const std::string& faceUri,
+                                double linkCost, const ndn::time::milliseconds& timeout)
+ {
+@@ -219,6 +258,30 @@ HelloProtocol::registerPrefixes(const ndn::Name& adjName, const std::string& fac
+ }
+ 
+ void
++HelloProtocol::onRegistrationSuccess1(const ndn::nfd::ControlParameters& commandSuccessResult,
++                                     const ndn::Name& neighbor,const ndn::time::milliseconds& timeout)
++{
++  Adjacent *adjacent = m_nlsr.getAdjacencyList().findAdjacent(neighbor);
++  if (adjacent != 0) {
++    adjacent->setFaceId(commandSuccessResult.getFaceId());
++    ndn::Name broadcastKeyPrefix = DEFAULT_BROADCAST_PREFIX;
++    broadcastKeyPrefix.append("KEYS");
++    std::string faceUri = adjacent->getConnectingFaceUri();
++    double linkCost = adjacent->getLinkCost();
++    m_nlsr.getFib().registerPrefix(m_nlsr.getConfParameter().getChronosyncPrefix(),
++                                 faceUri, linkCost, timeout,
++                                 ndn::nfd::ROUTE_FLAG_CAPTURE, 0);
++    m_nlsr.getFib().registerPrefix(m_nlsr.getConfParameter().getLsaPrefix(),
++                                 faceUri, linkCost, timeout,
++                                 ndn::nfd::ROUTE_FLAG_CAPTURE, 0);
++    m_nlsr.getFib().registerPrefix(broadcastKeyPrefix,
++                                 faceUri, linkCost, timeout,
++                                 ndn::nfd::ROUTE_FLAG_CAPTURE, 0);
++    m_nlsr.setStrategies();
++  }
++}
++
++void
+ HelloProtocol::onRegistrationSuccess(const ndn::nfd::ControlParameters& commandSuccessResult,
+                                      const ndn::Name& neighbor,const ndn::time::milliseconds& timeout)
+ {
+@@ -278,4 +341,20 @@ HelloProtocol::onRegistrationFailure(uint32_t code, const std::string& error,
+   }
+ }
+ 
++
++void
++HelloProtocol::registerAdjacentPrefixes()
++{
++  std::list<Adjacent> adjList = m_nlsr.getAdjacencyList().getAdjList();
++  for (std::list<Adjacent>::iterator it = adjList.begin(); it != adjList.end();
++       ++it) {
++    _LOG_DEBUG("Registering Adjacent: " << (*it).getName());
++    _LOG_DEBUG("Adjacent name: " << (*it).getName());
++    _LOG_DEBUG("Adjacent face uri: " << (*it).getConnectingFaceUri());
++    _LOG_DEBUG("Adjacent link cost: " << (*it).getLinkCost());
++    registerPrefixes1((*it).getName(), (*it).getConnectingFaceUri(),
++                     (*it).getLinkCost(), ndn::time::milliseconds::max());
++  }
++}
++
+ } //namespace nlsr
+diff --git a/src/hello-protocol.hpp b/src/hello-protocol.hpp
+index bc5267d..b107c40 100644
+--- a/src/hello-protocol.hpp
++++ b/src/hello-protocol.hpp
+@@ -27,6 +27,10 @@
+ #include <ndn-cxx/management/nfd-control-parameters.hpp>
+ #include <ndn-cxx/util/scheduler.hpp>
+ 
++#ifdef NS3_NLSR_SIM
++#include "utils/tracers/ndn-nlsr-tracer.hpp"
++#endif
++
+ namespace nlsr {
+ 
+ class Nlsr;
+@@ -37,7 +41,15 @@ public:
+   HelloProtocol(Nlsr& nlsr, ndn::Scheduler& scheduler)
+     : m_nlsr(nlsr)
+     , m_scheduler(scheduler)
++#ifdef NS3_NLSR_SIM
++    , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+   {
++    m_outInterest = 0;
++    m_inData = 0;
++    m_timedOutInterest = 0;
++    m_inInterest = 0;
++    m_outData = 0;
+   }
+ 
+   void
+@@ -52,6 +64,9 @@ public:
+   void
+   processInterest(const ndn::Name& name, const ndn::Interest& interest);
+ 
++  void
++  registerAdjacentPrefixes();
++
+ private:
+   void
+   processInterestTimedOut(const ndn::Interest& interest);
+@@ -71,18 +86,35 @@ private:
+                         const ndn::Name& name);
+ 
+   void
++  onRegistrationSuccess1(const ndn::nfd::ControlParameters& commandSuccessResult,
++                        const ndn::Name& neighbor, const ndn::time::milliseconds& timeout);
++
++  void
+   onRegistrationSuccess(const ndn::nfd::ControlParameters& commandSuccessResult,
+                         const ndn::Name& neighbor, const ndn::time::milliseconds& timeout);
+ 
+   void
+   registerPrefixes(const ndn::Name& adjName, const std::string& faceUri,
+                    double linkCost, const ndn::time::milliseconds& timeout);
++  void
++  registerPrefixes1(const ndn::Name& adjName, const std::string& faceUri,
++                   double linkCost, const ndn::time::milliseconds& timeout);
++private:
+ private:
+   Nlsr& m_nlsr;
+   ndn::Scheduler& m_scheduler;
+ 
+   static const std::string INFO_COMPONENT;
+   static const std::string NLSR_COMPONENT;
++
++#ifdef NS3_NLSR_SIM
++  ns3::ndn::NlsrTracer &m_tracer;
++  long m_outInterest;
++  long m_inData;
++  long m_timedOutInterest;
++  long m_inInterest;
++  long m_outData;
++#endif
+ };
+ 
+ } //namespace nlsr
+diff --git a/src/lsdb.cpp b/src/lsdb.cpp
+index 603f792..471ac32 100644
+--- a/src/lsdb.cpp
++++ b/src/lsdb.cpp
+@@ -39,6 +39,7 @@ INIT_LOGGER("Lsdb");
+ const ndn::Name::Component Lsdb::NAME_COMPONENT = ndn::Name::Component("lsdb");
+ const ndn::time::seconds Lsdb::GRACE_PERIOD = ndn::time::seconds(10);
+ const steady_clock::TimePoint Lsdb::DEFAULT_LSA_RETRIEVAL_DEADLINE = steady_clock::TimePoint::min();
++size_t intTypeLoc = 7;
+ 
+ using namespace std;
+ 
+@@ -787,6 +788,15 @@ Lsdb::expressInterest(const ndn::Name& interestName, uint32_t timeoutCount,
+                                                  this, _2, deadline, lsaName, seqNo),
+                                        ndn::bind(&Lsdb::processInterestTimedOut,
+                                                  this, _1, timeoutCount, deadline, lsaName, seqNo));
++
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("name") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "outNameLsaInterest", std::to_string(++m_outNlsaInterest), std::to_string(interest.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("adjacency") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "outAdjLsaInterest", std::to_string(++m_outLlsaInterest), std::to_string(interest.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("coordinate") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "outCordLsaInterest", std::to_string(++m_outClsaInterest), std::to_string(interest.wireEncode().size()));
++#endif
+ }
+ 
+ void
+@@ -795,6 +805,15 @@ Lsdb::processInterest(const ndn::Name& name, const ndn::Interest& interest)
+   const ndn::Name& interestName(interest.getName());
+   _LOG_DEBUG("Interest received for LSA: " << interestName);
+ 
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("name") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "inNameLsaInterest", std::to_string(++m_inNlsaInterest), std::to_string(interest.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("adjacency") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "inAdjLsaInterest", std::to_string(++m_inLlsaInterest), std::to_string(interest.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("coordinate") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "inCordLsaInterest", std::to_string(++m_inClsaInterest), std::to_string(interest.wireEncode().size()));
++#endif
++
+   string chkString("LSA");
+   int32_t lsaPosition = util::getNameComponentPosition(interest.getName(), chkString);
+ 
+@@ -837,6 +856,14 @@ Lsdb::putLsaData(const ndn::Interest& interest, const std::string& content)
+   _LOG_DEBUG("Sending data for LSA(name): " << interest.getName());
+   _LOG_DEBUG("Data signed with: " << signingCertName);
+   m_nlsr.getNlsrFace().put(*data);
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && data->getName().size() > intTypeLoc && data->getName().get(intTypeLoc).toUri().compare("name") == 0)
++    m_tracer.NameLsaTrace(data->getName().toUri(), "outNameLsaData", std::to_string(++m_outNlsaData), std::to_string(data->wireEncode().size()));
++  else if (m_tracer.IsEnabled() && data->getName().size() > intTypeLoc && data->getName().get(intTypeLoc).toUri().compare("adjacency") == 0)
++    m_tracer.NameLsaTrace(data->getName().toUri(), "outAdjLsaData", std::to_string(++m_outLlsaData), std::to_string(data->getName().wireEncode().size()));
++  else if (m_tracer.IsEnabled() && data->getName().size() > intTypeLoc && data->getName().get(intTypeLoc).toUri().compare("coordinate") == 0)
++    m_tracer.NameLsaTrace(data->getName().toUri(), "outCordLsaData", std::to_string(++m_outClsaData), std::to_string(data->wireEncode().size()));
++#endif
+ }
+ 
+ void
+@@ -886,6 +913,15 @@ Lsdb::onContent(const ndn::Data& data,
+                 const steady_clock::TimePoint& deadline, ndn::Name lsaName,
+                 uint64_t seqNo)
+ {
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && data.getName().size() > intTypeLoc && data.getName().get(intTypeLoc).toUri().compare("name") == 0)
++    m_tracer.NameLsaTrace(data.getName().toUri(), "inNameLsaData", std::to_string(++m_inNlsaData), std::to_string(data.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && data.getName().size() > intTypeLoc && data.getName().get(intTypeLoc).toUri().compare("adjacency") == 0)
++    m_tracer.NameLsaTrace(data.getName().toUri(), "inAdjLsaData", std::to_string(++m_inLlsaData), std::to_string(data.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && data.getName().size() > intTypeLoc && data.getName().get(intTypeLoc).toUri().compare("coordinate") == 0)
++    m_tracer.NameLsaTrace(data.getName().toUri(), "inCordLsaData", std::to_string(++m_inClsaData), std::to_string(data.wireEncode().size()));
++#endif
++
+   _LOG_DEBUG("Received data for LSA(name): " << data.getName());
+   if (data.getSignature().hasKeyLocator()) {
+     if (data.getSignature().getKeyLocator().getType() == ndn::KeyLocator::KeyLocator_Name) {
+@@ -1037,6 +1073,14 @@ Lsdb::processInterestTimedOut(const ndn::Interest& interest, uint32_t retransmit
+       expressInterest(interestName, retransmitNo + 1, deadline);
+     }
+   }
++#ifdef NS3_NLSR_SIM
++  if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("name") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "timedoutNameLsaInterest", std::to_string(++m_timedoutNlsaInterest), std::to_string(interestName.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("adjacency") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "timedoutAdjLsaInterest", std::to_string(++m_timedoutLlsaInterest), std::to_string(interestName.wireEncode().size()));
++  else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("coordinate") == 0)
++    m_tracer.NameLsaTrace(interestName.toUri(), "timedoutCordLsaInterest", std::to_string(++m_timedoutClsaInterest), std::to_string(interestName.wireEncode().size()));
++#endif
+ }
+ 
+ ndn::time::system_clock::TimePoint
+diff --git a/src/lsdb.hpp b/src/lsdb.hpp
+index 417c978..077ee4a 100644
+--- a/src/lsdb.hpp
++++ b/src/lsdb.hpp
+@@ -31,6 +31,10 @@
+ #include "lsa.hpp"
+ #include "test-access-control.hpp"
+ 
++#ifdef NS3_NLSR_SIM
++#include "utils/tracers/ndn-nlsr-tracer.hpp"
++#endif
++
+ namespace nlsr {
+ 
+ using namespace ndn::time;
+@@ -47,7 +51,31 @@ public:
+     , m_sync(sync)
+     , m_lsaRefreshTime(0)
+     , m_adjLsaBuildInterval(static_cast<uint32_t>(ADJ_LSA_BUILD_INTERVAL_DEFAULT))
++#ifdef NS3_NLSR_SIM
++    , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+   {
++#ifdef NS3_NLSR_SIM
++  m_outNlsaInterest = 0;
++  m_outLlsaInterest = 0;
++  m_outClsaInterest = 0;
++
++  m_inNlsaInterest = 0;
++  m_inLlsaInterest = 0;
++  m_inClsaInterest = 0;
++
++  m_outNlsaData = 0;
++  m_outLlsaData = 0;
++  m_outClsaData = 0;
++
++  m_inNlsaData = 0;
++  m_inLlsaData = 0;
++  m_inClsaData = 0;
++
++  m_timedoutNlsaInterest = 0;
++  m_timedoutLlsaInterest = 0;
++  m_timedoutClsaInterest = 0;
++#endif
+   }
+ 
+   bool
+@@ -290,6 +318,29 @@ private:
+   static const steady_clock::TimePoint DEFAULT_LSA_RETRIEVAL_DEADLINE;
+ 
+   ndn::time::seconds m_adjLsaBuildInterval;
++
++#ifdef NS3_NLSR_SIM
++  ns3::ndn::NlsrTracer &m_tracer;
++  long m_outNlsaInterest;
++  long m_outLlsaInterest;
++  long m_outClsaInterest;
++
++  long m_inNlsaInterest;
++  long m_inLlsaInterest;
++  long m_inClsaInterest;
++
++  long m_outNlsaData;
++  long m_outLlsaData;
++  long m_outClsaData;
++
++  long m_inNlsaData;
++  long m_inLlsaData;
++  long m_inClsaData;
++
++  long m_timedoutNlsaInterest;
++  long m_timedoutLlsaInterest;
++  long m_timedoutClsaInterest;
++#endif
+ };
+ 
+ }//namespace nlsr
+diff --git a/src/nlsr-logger.cpp b/src/nlsr-logger.cpp
+new file mode 100644
+index 0000000..65bde67
+--- /dev/null
++++ b/src/nlsr-logger.cpp
+@@ -0,0 +1,107 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2014  University of Memphis,
++ *                     Regents of the University of California
++ *
++ * This file is part of NLSR (Named-data Link State Routing).
++ * See AUTHORS.md for complete list of NLSR authors and contributors.
++ *
++ * NLSR is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * NLSR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * NLSR, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * \author A K M Mahmudul Hoque <ahoque1@memphis.edu>
++ *
++ **/
++
++#ifdef NS3_NLSR_SIM
++
++#include <boost/algorithm/string.hpp>
++#include <boost/filesystem.hpp>
++ 
++bool
++isValidLogLevel(const std::string& logLevel)
++{
++  return boost::iequals(logLevel, "all")   || boost::iequals(logLevel, "trace") ||
++         boost::iequals(logLevel, "debug") || boost::iequals(logLevel, "info")  ||
++         boost::iequals(logLevel, "warn")  || boost::iequals(logLevel, "error") ||
++         boost::iequals(logLevel, "none");
++}
++
++#else 
++
++#include <log4cxx/logger.h>
++#include <log4cxx/basicconfigurator.h>
++#include <log4cxx/xml/domconfigurator.h>
++#include <log4cxx/propertyconfigurator.h>
++#include <log4cxx/patternlayout.h>
++#include <log4cxx/level.h>
++#include <log4cxx/helpers/exception.h>
++#include <log4cxx/rollingfileappender.h>
++
++#include <boost/algorithm/string.hpp>
++#include <boost/filesystem.hpp>
++
++#include "nlsr-logger.hpp"
++
++void
++INIT_LOG4CXX(const std::string& log4cxxConfPath)
++{
++  if (boost::filesystem::path(log4cxxConfPath).extension().string() == ".xml") {
++    log4cxx::xml::DOMConfigurator::configure(log4cxxConfPath);
++  }
++  else {
++    log4cxx::PropertyConfigurator::configure(log4cxxConfPath);
++  }
++}
++
++void
++INIT_LOGGERS(const std::string& logDir, const std::string& logLevel)
++{
++  static bool configured = false;
++
++  if (configured) {
++    return;
++  }
++
++  log4cxx::PatternLayoutPtr
++           layout(new log4cxx::PatternLayout("%date{yyyyMMddHHmmssSSS} %p: [%c] %m%n"));
++
++  log4cxx::RollingFileAppender* rollingFileAppender =
++           new log4cxx::RollingFileAppender(layout, logDir+"/nlsr.log", true);
++
++  rollingFileAppender->setMaxFileSize("10MB");
++  rollingFileAppender->setMaxBackupIndex(10);
++
++  log4cxx::helpers::Pool p;
++  rollingFileAppender->activateOptions(p);
++
++  log4cxx::BasicConfigurator::configure(log4cxx::AppenderPtr(rollingFileAppender));
++
++  if (boost::iequals(logLevel, "none")) {
++    log4cxx::Logger::getRootLogger()->setLevel(log4cxx::Level::getOff());
++  }
++  else {
++    log4cxx::Logger::getRootLogger()->setLevel(log4cxx::Level::toLevel(logLevel));
++  }
++
++  configured = true;
++}
++
++bool
++isValidLogLevel(const std::string& logLevel)
++{
++  return boost::iequals(logLevel, "all")   || boost::iequals(logLevel, "trace") ||
++         boost::iequals(logLevel, "debug") || boost::iequals(logLevel, "info")  ||
++         boost::iequals(logLevel, "warn")  || boost::iequals(logLevel, "error") ||
++         boost::iequals(logLevel, "none");
++}
++
++#endif
+diff --git a/src/nlsr-logger.hpp b/src/nlsr-logger.hpp
+new file mode 100644
+index 0000000..73ee42a
+--- /dev/null
++++ b/src/nlsr-logger.hpp
+@@ -0,0 +1,77 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2014  University of Memphis,
++ *                     Regents of the University of California
++ *
++ * This file is part of NLSR (Named-data Link State Routing).
++ * See AUTHORS.md for complete list of NLSR authors and contributors.
++ *
++ * NLSR is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * NLSR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * NLSR, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * \author A K M Mahmudul Hoque <ahoque1@memphis.edu>
++ *
++ **/
++
++#ifndef NLSR_LOG_HPP
++#define NLSR_LOG_HPP
++
++#ifdef NS3_NLSR_SIM
++
++#include "ns3/log.h"
++
++#define INIT_LOGGER(name) NS_LOG_COMPONENT_DEFINE(name);
++#define _LOG_TRACE(expression) NS_LOG_LOGIC(expression)
++#define _LOG_DEBUG(expression) NS_LOG_DEBUG(expression)
++#define _LOG_INFO(expression) NS_LOG_INFO(expression)
++#define _LOG_WARN(expression) NS_LOG_WARN(expression)
++#define _LOG_ERROR(expression) NS_LOG_ERROR(expression)
++#define _LOG_FATAL(expression) NS_LOG_ERROR(expression)
++
++bool
++isValidLogLevel(const std::string& logLevel);
++
++#else 
++
++#include <log4cxx/logger.h>
++
++#define INIT_LOGGER(name) \
++	  static log4cxx::LoggerPtr staticModuleLogger = log4cxx::Logger::getLogger(name)
++
++#define _LOG_TRACE(x) \
++	  LOG4CXX_TRACE(staticModuleLogger, x)
++
++#define _LOG_DEBUG(x) \
++	  LOG4CXX_DEBUG(staticModuleLogger, x)
++
++#define _LOG_INFO(x) \
++	  LOG4CXX_INFO(staticModuleLogger, x)
++
++#define _LOG_WARN(x) \
++	  LOG4CXX_WARN(staticModuleLogger, x)
++
++#define _LOG_ERROR(x) \
++	  LOG4CXX_ERROR(staticModuleLogger, x)
++
++#define _LOG_FATAL(x) \
++	  LOG4CXX_FATAL(staticModuleLogger, x);
++
++void
++INIT_LOGGERS(const std::string& logDir, const std::string& logLevel);
++
++void
++INIT_LOG4CXX(const std::string& log4cxxConfPath);
++
++bool
++isValidLogLevel(const std::string& logLevel);
++
++#endif // NS3_NLSR_SIM
++#endif // NLSR_LOG_HPP
+diff --git a/src/nlsr.cpp b/src/nlsr.cpp
+index a887883..358abfc 100644
+--- a/src/nlsr.cpp
++++ b/src/nlsr.cpp
+@@ -44,6 +44,64 @@ const ndn::Name Nlsr::LOCALHOST_PREFIX = ndn::Name("/localhost/nlsr");
+ using namespace ndn;
+ using namespace std;
+ 
++#ifdef NS3_NLSR_SIM
++ns3::TypeId
++Nlsr::GetTypeId (void)
++{
++  static ns3::TypeId tid = ns3::TypeId ("nlsr::Nlsr")
++    .SetGroupName ("Ndn")
++    .SetParent<Object> ();
++
++  return tid;
++}
++
++Nlsr::~Nlsr()
++{
++}
++#endif
++
++#ifdef NS3_NLSR_SIM
++Nlsr::Nlsr(boost::asio::io_service& ioService, ndn::Scheduler& scheduler, ndn::Face& face, ndn::KeyChain& keyChain)
++  : m_nlsrFace(face)
++  , m_scheduler(scheduler)
++  , m_confParam()
++  , m_adjacencyList()
++  , m_namePrefixList()
++  , m_sequencingManager()
++  , m_isDaemonProcess(false)
++  , m_configFileName("nlsr.conf")
++  , m_nlsrLsdb(*this, scheduler, m_syncLogicHandler)
++  , m_adjBuildCount(0)
++  , m_isBuildAdjLsaSheduled(false)
++  , m_isRouteCalculationScheduled(false)
++  , m_isRoutingTableCalculating(false)
++  , m_routingTable(scheduler)
++  , m_fib(m_nlsrFace, scheduler, m_adjacencyList, m_confParam, keyChain)
++  , m_namePrefixTable(*this)
++  , m_syncLogicHandler(m_nlsrFace, m_nlsrLsdb, m_confParam, m_sequencingManager)
++  , m_helloProtocol(*this, scheduler)
++  , m_lsdbDatasetHandler(m_nlsrLsdb,
++                         m_nlsrFace,
++                         m_confParam.getRouterPrefix(),
++                         keyChain)
++  , m_certificateCache(new ndn::CertificateCacheTtl(ioService))
++  , m_validator(m_nlsrFace, DEFAULT_BROADCAST_PREFIX, m_certificateCache, m_certStore)
++  , m_keyChain(keyChain)
++  , m_prefixUpdateProcessor(m_nlsrFace,
++                            m_namePrefixList,
++                            m_nlsrLsdb,
++                            m_syncLogicHandler,
++                            DEFAULT_BROADCAST_PREFIX,
++                            m_keyChain,
++                            m_certificateCache,
++                            m_certStore)
++  , m_faceMonitor(m_nlsrFace)
++  , m_firstHelloInterval(FIRST_HELLO_INTERVAL_DEFAULT)
++{
++  m_faceMonitor.onNotification.connect(bind(&Nlsr::onFaceEventNotification, this, _1));
++  m_faceMonitor.start();
++}
++#else
+ Nlsr::Nlsr(boost::asio::io_service& ioService, ndn::Scheduler& scheduler, ndn::Face& face)
+   : m_nlsrFace(face)
+   , m_scheduler(scheduler)
+@@ -83,6 +141,7 @@ Nlsr::Nlsr(boost::asio::io_service& ioService, ndn::Scheduler& scheduler, ndn::F
+   m_faceMonitor.onNotification.connect(bind(&Nlsr::onFaceEventNotification, this, _1));
+   m_faceMonitor.start();
+ }
++#endif
+ 
+ void
+ Nlsr::registrationFailed(const ndn::Name& name)
+@@ -197,7 +256,11 @@ Nlsr::initialize()
+   m_adjacencyList.writeLog();
+   m_namePrefixList.writeLog();
+   /* Logging end */
++#ifdef NS3_NLSR_SIM
++  //initializeKey();
++#else
+   initializeKey();
++#endif
+   setStrategies();
+   _LOG_DEBUG("Default NLSR identity: " << m_signingInfo.getSignerName());
+   setInfoInterestFilter();
+@@ -213,6 +276,7 @@ Nlsr::initialize()
+ 
+   registerKeyPrefix();
+   registerLocalhostPrefix();
++  m_helloProtocol.registerAdjacentPrefixes();
+ 
+   m_helloProtocol.scheduleInterest(m_firstHelloInterval);
+ 
+diff --git a/src/nlsr.hpp b/src/nlsr.hpp
+index 3f9fa24..dc06238 100644
+--- a/src/nlsr.hpp
++++ b/src/nlsr.hpp
+@@ -50,12 +50,19 @@
+ #include "update/prefix-update-processor.hpp"
+ #include "utility/name-helper.hpp"
+ 
++#ifdef NS3_NLSR_SIM
++#include "ns3/object.h"
++#endif
+ 
+ namespace nlsr {
+ 
+ static ndn::Name DEFAULT_BROADCAST_PREFIX("/ndn/broadcast");
+ 
++#ifdef NS3_NLSR_SIM
++class Nlsr : public ns3::Object
++#else
+ class Nlsr
++#endif
+ {
+   class Error : public std::runtime_error
+   {
+@@ -68,7 +75,13 @@ class Nlsr
+   };
+ 
+ public:
++#ifdef NS3_NLSR_SIM
++  Nlsr(boost::asio::io_service& ioService, ndn::Scheduler& scheduler, ndn::Face& face, ndn::KeyChain& keyChain);
++  static ns3::TypeId GetTypeId (void);
++  ~Nlsr();
++#else
+   Nlsr(boost::asio::io_service& ioService, ndn::Scheduler& scheduler, ndn::Face& face);
++#endif
+ 
+   void
+   registrationFailed(const ndn::Name& name);
+@@ -373,7 +386,11 @@ private:
+   ndn::shared_ptr<ndn::CertificateCacheTtl> m_certificateCache;
+   security::CertificateStore m_certStore;
+   Validator m_validator;
++#ifdef NS3_NLSR_SIM
++  ndn::KeyChain& m_keyChain;
++#else
+   ndn::KeyChain m_keyChain;
++#endif
+   ndn::security::SigningInfo m_signingInfo;
+   ndn::Name m_defaultCertName;
+   update::PrefixUpdateProcessor m_prefixUpdateProcessor;
+diff --git a/src/route/face-map.cpp b/src/route/face-map.cpp
+index f0269dc..2d820a6 100644
+--- a/src/route/face-map.cpp
++++ b/src/route/face-map.cpp
+@@ -26,6 +26,12 @@
+ 
+ #include "common.hpp"
+ #ifdef NS3_NLSR_SIM
++#include <ns3/ptr.h>
++#include <ns3/node.h>
++#include <ns3/node-list.h>
++#include <ns3/names.h>
++#include "model/ndn-l3-protocol.hpp"
++#include "apps/ndn-nlsr-app.hpp"
+ #include "nlsr-logger.hpp"
+ #else
+ #include "logger.hpp"
+@@ -44,6 +50,15 @@ FaceMap::writeLog()
+       it != m_table.end(); ++it) {
+     _LOG_DEBUG("Face Map Entry (FaceUri: " << (*it).getFaceUri() << " Face Id: "
+                << (*it).getFaceId() << ")");
++#if 0
++#ifdef NS3_NLSR_SIM
++  ns3::Ptr<ns3::Node> thisNode;
++  thisNode = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  _LOG_DEBUG("------- FIB Table of Node: " << ns3::Names::FindName(thisNode) << " -----------");
++  ns3::Ptr<ns3::ndn::NlsrApp> nlsrApp = thisNode->GetApplication(0)->GetObject<ns3::ndn::NlsrApp> ();
++  nlsrApp->GetNlsr().getFib().writeLog();
++#endif
++#endif
+   }
+ }
+ 
+diff --git a/src/route/routing-table-calculator.cpp b/src/route/routing-table-calculator.cpp
+index 1c32840..61c47f5 100644
+--- a/src/route/routing-table-calculator.cpp
++++ b/src/route/routing-table-calculator.cpp
+@@ -219,6 +219,11 @@ LinkStateRoutingTableCalculator::calculatePath(Map& pMap,
+     doDijkstraPathCalculation(sourceRouter);
+     // update routing table
+     addAllLsNextHopsToRoutingTable(pnlsr, rt, pMap, sourceRouter);
++#ifdef NS3_NLSR_SIM
++    if (m_tracer.IsEnabled()) {
++      m_tracer.FibTrace("-", "dijkSinglePath", std::to_string(++m_dijkSinglePath));
++    }
++#endif
+   }
+   else {
+     // Multi Path
+@@ -233,6 +238,11 @@ LinkStateRoutingTableCalculator::calculatePath(Map& pMap,
+       //update routing table
+       addAllLsNextHopsToRoutingTable(pnlsr, rt, pMap, sourceRouter);
+     }
++#ifdef NS3_NLSR_SIM
++    if (m_tracer.IsEnabled()) {
++      m_tracer.FibTrace("-", "dijkMultiPath", std::to_string(++m_dijkMultiPath));
++    }
++#endif
+     freeLinks();
+     freeLinksCosts();
+   }
+@@ -437,6 +447,15 @@ HyperbolicRoutingCalculator::calculatePaths(Map& map, RoutingTable& rt,
+       }
+     }
+   }
++#ifdef NS3_NLSR_SIM
++  if(m_tracer.IsEnabled() && !m_isDryRun) {
++    m_tracer.FibTrace("-", "hyperbolRouting", std::to_string(++m_hyperbolRouting));
++  } else  {
++    if (m_tracer.IsEnabled()) {
++      m_tracer.FibTrace("-", "hyperDryRouting", std::to_string(++m_hyperDryRouting));
++    }
++  }
++#endif
+ }
+ 
+ double
+diff --git a/src/route/routing-table-calculator.hpp b/src/route/routing-table-calculator.hpp
+index a2295b5..0c013be 100644
+--- a/src/route/routing-table-calculator.hpp
++++ b/src/route/routing-table-calculator.hpp
+@@ -29,6 +29,10 @@
+ 
+ #include <ndn-cxx/name.hpp>
+ 
++#ifdef NS3_NLSR_SIM
++#include "utils/tracers/ndn-nlsr-tracer.hpp"
++#endif
++
+ namespace nlsr {
+ 
+ class Map;
+@@ -106,7 +110,12 @@ public:
+     , INF_DISTANCE(2147483647)
+     , NO_MAPPING_NUM(-1)
+     , NO_NEXT_HOP(-12345)
++#ifdef NS3_NLSR_SIM
++    , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+   {
++    m_dijkSinglePath = 0;
++    m_dijkMultiPath = 0;
+   }
+ 
+   void
+@@ -150,6 +159,11 @@ private:
+   const int NO_MAPPING_NUM;
+   const int NO_NEXT_HOP;
+ 
++#ifdef NS3_NLSR_SIM
++  ns3::ndn::NlsrTracer &m_tracer;
++  long m_dijkSinglePath;
++  long m_dijkMultiPath;
++#endif
+ };
+ 
+ class AdjacencyList;
+@@ -162,7 +176,12 @@ public:
+     : m_nRouters(nRouters)
+     , m_isDryRun(isDryRun)
+     , m_thisRouterName(thisRouterName)
++#ifdef NS3_NLSR_SIM
++    , m_tracer(ns3::ndn::NlsrTracer::Instance())
++#endif
+   {
++    m_hyperbolRouting = 0;
++    m_hyperDryRouting = 0;
+   }
+ 
+   void
+@@ -184,6 +203,12 @@ private:
+   static const double UNKNOWN_DISTANCE;
+   static const double UNKNOWN_RADIUS;
+   static const int32_t ROUTER_NOT_FOUND;
++
++#ifdef NS3_NLSR_SIM
++  ns3::ndn::NlsrTracer &m_tracer;
++  long m_hyperbolRouting;
++  long m_hyperDryRouting;
++#endif
+ };
+ 
+ }//namespace nlsr
+diff --git a/src/utility/face-controller.cpp b/src/utility/face-controller.cpp
+index bb395d1..366831c 100644
+--- a/src/utility/face-controller.cpp
++++ b/src/utility/face-controller.cpp
+@@ -24,6 +24,14 @@
+ #include "common.hpp"
+ #ifdef NS3_NLSR_SIM
+ #include "nlsr-logger.hpp"
++#include <ns3/ptr.h>
++#include <ns3/node.h>
++#include <ns3/channel.h>
++#include <ns3/node-list.h>
++#include <ns3/point-to-point-net-device.h>
++#include "model/ndn-l3-protocol.hpp"
++#include "apps/ndn-nlsr-app.hpp"
++#include "adjacent.hpp"
+ #else
+ #include "logger.hpp"
+ #endif
+@@ -58,8 +66,15 @@ FaceController::createFaceInNfd(const FaceUri& uri,
+   ndn::nfd::ControlParameters faceParameters;
+   faceParameters.setUri(uri.toString());
+ 
++#ifdef NS3_NLSR_SIM
++  uint32_t faceId = getFaceFromP2PLink(uri.toString());
++  faceParameters.setFaceId(faceId);
++  onSuccess(faceParameters);
++  _LOG_DEBUG("Creating Face in NFD with face-uri: " << uri);
++#else
+   _LOG_DEBUG("Creating Face in NFD with face-uri: " << uri);
+   m_controller.start<ndn::nfd::FaceCreateCommand>(faceParameters, onSuccess, onFailure);
++#endif
+ }
+ 
+ void
+@@ -83,5 +98,59 @@ FaceController::onCanonizeFailure(const std::string& reason,
+   onFailure(CANONIZE_ERROR_CODE, "Could not canonize face-uri: " + request.toString());
+ }
+ 
++#ifdef NS3_NLSR_SIM
++uint32_t
++FaceController::getFaceFromP2PLink(std::string faceUri)
++{
++  ns3::Ptr<ns3::Node> thisNode;
++  ns3::Ptr<ns3::Node> adjNode;
++  ns3::Ptr<ns3::ndn::L3Protocol> ndnStack;
++  ns3::PointToPointNetDevice *netDevice;
++  uint32_t faceId = 0;
++  uint32_t adjNodeId = 0;
++  std::string simName = "";
++
++  thisNode = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  _LOG_DEBUG("@ THIS node is: " << thisNode->GetId());
++  ns3::Ptr<ns3::ndn::NlsrApp> nlsrApp = thisNode->GetApplication(0)->GetObject<ns3::ndn::NlsrApp> ();
++  NS_ASSERT (nlsrApp != 0);
++
++  Adjacent *adj = nlsrApp->GetNlsr().getAdjacencyList().findAdjacent(faceUri);
++  if (adj != 0) {
++    simName = adj->getSimulatedName();
++    _LOG_DEBUG("@ ADJC node is: " << simName);
++    if (nlsrApp->GetNode(simName) != NULL) {
++      adjNode = nlsrApp->GetNode(simName);
++      adjNodeId = adjNode->GetId();
++      _LOG_DEBUG("@ ADJC node is: " << adjNode->GetId());
++    }
++  }
++
++  ndnStack = thisNode->GetObject<ns3::ndn::L3Protocol>();
++  NS_ASSERT(ndnStack != nullptr);
++
++  for (uint32_t deviceId = 0; deviceId < thisNode->GetNDevices(); deviceId++) {
++    netDevice = dynamic_cast<ns3::PointToPointNetDevice*>(&(*(thisNode->GetDevice(deviceId))));
++    if (netDevice == NULL)
++      continue;
++
++    ns3::Ptr<ns3::Channel> channel = netDevice->GetChannel();
++    if (channel == 0)
++      continue;
++
++    _LOG_DEBUG("@ channel node is: " << channel->GetDevice(0)->GetNode()->GetId());
++    _LOG_DEBUG("@ channel node is: " << channel->GetDevice(1)->GetNode()->GetId());
++    if (channel->GetDevice(0)->GetNode()->GetId() == adjNodeId ||
++        channel->GetDevice(1)->GetNode()->GetId() == adjNodeId) {
++      faceId = ndnStack->getFaceByNetDevice(netDevice)->getId();
++      _LOG_DEBUG("@ ADJC node (" << adjNodeId << ")" << " face ID: (" << faceId << ")");
++      return faceId;
++    }
++  }
++
++  return faceId;
++}
++#endif
++
+ } // namespace util
+ } // namespace nlsr
+diff --git a/src/utility/face-controller.hpp b/src/utility/face-controller.hpp
+index 3c42afe..62bf077 100644
+--- a/src/utility/face-controller.hpp
++++ b/src/utility/face-controller.hpp
+@@ -63,6 +63,11 @@ private:
+                     const CommandFailureCallback& onFailure,
+                     const ndn::util::FaceUri& request);
+ 
++#ifdef NS3_NLSR_SIM
++  uint32_t
++  getFaceFromP2PLink(std::string);
++#endif
++
+ private:
+   boost::asio::io_service& m_ioService;
+   ndn::nfd::Controller& m_controller;

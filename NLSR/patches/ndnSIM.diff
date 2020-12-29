@@ -1,0 +1,3089 @@
+diff --git a/.gitmodules b/.gitmodules
+index 4031182..e85008a 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -6,4 +6,4 @@
+ 	url = https://github.com/named-data-ndnSIM/ndn-cxx
+ [submodule "NLSR"]
+ 	path = NLSR
+-	url = https://github.com/anilj1/NLSR
++	url = https://github.com/anilj1/baseNLSR.git
+diff --git a/NLSR b/NLSR
+index af909fc..a0b2f9e 160000
+--- a/NLSR
++++ b/NLSR
+@@ -1 +1 @@
+-Subproject commit af909fcc138ce18bd433edecc248ed2b60fc9737
++Subproject commit a0b2f9eae584d23ea2e8ee9e3d435182f8bd6c3f
+diff --git a/apps/ndn-nlsr-app.cpp b/apps/ndn-nlsr-app.cpp
+new file mode 100644
+index 0000000..bb7d54b
+--- /dev/null
++++ b/apps/ndn-nlsr-app.cpp
+@@ -0,0 +1,92 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++#include "ndn-nlsr-app.hpp"
++
++#include "ns3/log.h"
++#include <ns3/node-list.h>
++#include "ns3/simulator.h"
++#include "ns3/ndnSIM/helper/ndn-stack-helper.hpp"
++
++NS_LOG_COMPONENT_DEFINE ("NlsrApp");
++
++namespace ns3 {
++namespace ndn {
++
++NS_OBJECT_ENSURE_REGISTERED (NlsrApp);
++
++TypeId
++NlsrApp::GetTypeId (void)
++{
++  static TypeId tid = TypeId ("ns3::ndn::NlsrApp")
++    .SetGroupName ("Ndn")
++    .SetParent<Application> ()
++    .AddConstructor<NlsrApp> ()
++  ;
++  return tid;
++}
++
++NlsrApp::NlsrApp() {
++}
++
++NlsrApp::~NlsrApp() {
++}
++
++void
++NlsrApp::Initialize(std::string& nodeConfig) {
++  m_nodeConfigFile = nodeConfig;
++}
++
++void
++NlsrApp::StartApplication ()
++{
++  NS_LOG_FUNCTION_NOARGS ();
++  m_instance.reset(new ndn::NlsrExec(ndn::StackHelper::getKeyChain(), m_nodeConfigFile));
++  m_instance->run();
++}
++
++void
++NlsrApp::StopApplication ()
++{
++  NS_LOG_FUNCTION_NOARGS ();
++  m_instance.reset();
++}
++
++void
++NlsrApp::SetNodeNameToIdMapping(std::string name, uint32_t id)
++{
++  m_ndn_node_map[name] = id;
++}
++
++Ptr<Node>
++NlsrApp::GetNode (std::string nodeName)
++{
++  uint32_t id = m_ndn_node_map[nodeName];
++  uint32_t size = ns3::NodeList::GetNNodes();
++  for (uint32_t i = 0; i < size; i++) {
++    ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(i);
++    if (node->GetId() == id) {
++      return node;
++    }
++  }
++  return NULL;
++}
++
++} // namespace ndn
++} // namespace ns3
+diff --git a/apps/ndn-nlsr-app.hpp b/apps/ndn-nlsr-app.hpp
+new file mode 100644
+index 0000000..fa76203
+--- /dev/null
++++ b/apps/ndn-nlsr-app.hpp
+@@ -0,0 +1,94 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++#ifndef NDN_NLSR_APP_H_
++#define NDN_NLSR_APP_H_
++
++#include "ndn-nlsr-exec.hpp"
++#include "ns3/application.h"
++#include "ns3/ptr.h"
++#include "ns3/node-container.h"
++
++namespace ns3 {
++namespace ndn {
++
++class NlsrApp: public Application {
++
++public:
++  static TypeId GetTypeId (void);
++
++  NlsrApp();
++
++  virtual
++  ~NlsrApp();
++
++  void
++  Initialize(std::string& nodeConfig);
++
++  nlsr::ConfParameter&
++  GetConfParameter()
++  {
++    return m_instance->GetConfParameter();
++  }
++
++  nlsr::Nlsr&
++  GetNlsr()
++  {
++    return m_instance->GetNlsr();
++  }
++
++  void
++  SetNodeName(std::string name)
++  {
++    m_nodeName = name;
++  }
++
++  std::string
++  GetNodeName()
++  {
++    return m_nodeName;
++  }
++
++  void
++  SetNodeNameToIdMapping(std::string name, uint32_t id);
++
++  Ptr<Node>
++  GetNode(std::string name);
++
++protected:
++  // inherited from Application base class.
++  virtual void
++  StartApplication ();    // Called at time specified by Start
++
++  virtual void
++  StopApplication ();     // Called at time specified by Stop
++
++private:
++  std::unique_ptr<ndn::NlsrExec> m_instance;
++  std::string m_nodeConfigFile;
++  std::string m_nodeName;
++  NodeContainer *m_nodes;
++  typedef std::map<std::string, uint32_t> NDN_NODE_MAP;
++  NDN_NODE_MAP m_ndn_node_map;
++};
++
++} // namespace ndn
++} // namespace ns3
++
++#endif /* NDN_NLSR_APP_H_ */
+diff --git a/apps/ndn-nlsr-exec.cpp b/apps/ndn-nlsr-exec.cpp
+new file mode 100644
+index 0000000..e1ad441
+--- /dev/null
++++ b/apps/ndn-nlsr-exec.cpp
+@@ -0,0 +1,72 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2014-2015,  The University of Memphis,
++ *                           Regents of the University of California,
++ *                           Arizona Board of Regents.
++ *
++ * This file is part of NLSR (Named-data Link State Routing).
++ * See AUTHORS.md for complete list of NLSR authors and contributors.
++ *
++ * NLSR is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * NLSR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * NLSR, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++#include <boost/filesystem.hpp>
++
++#include "ndn-nlsr-exec.hpp"
++
++#include "conf-file-processor.hpp"
++#include "ns3/ndnSIM/helper/ndn-stack-helper.hpp"
++
++#ifdef NS3_NLSR_SIM
++#include "nlsr-logger.hpp"
++#else
++#include "logger.hpp"
++#endif
++
++namespace ns3 {
++
++namespace ndn {
++
++INIT_LOGGER("NlsrExec");
++
++NlsrExec::NlsrExec(::ndn::KeyChain& keyChain, std::string& nlsrConf)
++  : m_ioService(m_face.getIoService())
++  , m_scheduler(m_ioService)
++  , m_keyChain(keyChain)
++  , m_nlsr(m_ioService, m_scheduler, m_face, m_keyChain)
++{
++  m_nlsr.setConfFileName(nlsrConf);
++  nlsr::ConfFileProcessor configProcessor(m_nlsr, m_nlsr.getConfFileName());
++  if (!configProcessor.processConfFile()) {
++    throw Error("Error in configuration file processing! Exiting from NLSR");
++  }
++}
++
++void
++NlsrExec::run()
++{
++  m_nlsr.initialize();
++
++  try {
++    m_nlsr.startEventLoop();
++  }
++  catch (std::exception& e) {
++    _LOG_FATAL("ERROR: " << e.what());
++    std::cerr << "ERROR: " << e.what() << std::endl;
++
++    m_nlsr.getFib().clean();
++    m_nlsr.destroyFaces();
++  }
++}
++
++} // namespace ndn
++} // namespace ns3
+diff --git a/apps/ndn-nlsr-exec.hpp b/apps/ndn-nlsr-exec.hpp
+new file mode 100644
+index 0000000..a782e97
+--- /dev/null
++++ b/apps/ndn-nlsr-exec.hpp
+@@ -0,0 +1,83 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2014-2015,  The University of Memphis,
++ *                           Regents of the University of California,
++ *                           Arizona Board of Regents.
++ *
++ * This file is part of NLSR (Named-data Link State Routing).
++ * See AUTHORS.md for complete list of NLSR authors and contributors.
++ *
++ * NLSR is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * NLSR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * NLSR, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++#ifndef NDN_NLSR_EXEC_HPP
++#define NDN_NLSR_EXEC_HPP
++
++#include "nlsr.hpp"
++#include "conf-parameter.hpp"
++
++#include <ndn-cxx/face.hpp>
++#include <ndn-cxx/util/scheduler.hpp>
++#include <ndn-cxx/security/key-chain.hpp>
++
++// boost needs to be included after ndn-cxx, otherwise there will be conflict with _1, _2, ...
++#include <boost/asio.hpp>
++
++#include "conf-parameter.hpp"
++
++namespace ns3 {
++
++namespace ndn {
++
++class NlsrExec
++{
++  class Error : public std::runtime_error
++  {
++  public:
++    explicit
++    Error(const std::string& what)
++      : std::runtime_error(what)
++    {
++    }
++  };
++
++public:
++  NlsrExec(::ndn::KeyChain& keyChain, std::string& nlsrConf);
++
++  void
++  run();
++
++  nlsr::ConfParameter&
++  GetConfParameter()
++  {
++    return m_nlsr.getConfParameter();
++  }
++
++  nlsr::Nlsr&
++  GetNlsr()
++  {
++    return m_nlsr;
++  }
++
++private:
++  ::ndn::Face m_face;
++  boost::asio::io_service& m_ioService;
++  ::ndn::Scheduler m_scheduler;
++  ::ndn::KeyChain& m_keyChain;
++
++  nlsr::Nlsr m_nlsr;
++};
++
++} // namespace ndn
++} // namespace ns3
++
++#endif // NDN_NLSR_EXEC_HPP
+diff --git a/examples/ndn-nlsr-conf/10_node_router.brite b/examples/ndn-nlsr-conf/10_node_router.brite
+new file mode 100644
+index 0000000..2569cb7
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/10_node_router.brite
+@@ -0,0 +1,37 @@
++Topology: ( 10 Nodes, 20 Edges )
++Model (1 - RTWaxman):  10 1000 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 10 )
++0	115	896	6	6	-1	RT_NODE
++1	154	292	5	5	-1	RT_NODE
++2	904	690	5	5	-1	RT_NODE
++3	324	174	5	5	-1	RT_NODE
++4	154	359	4	4	-1	RT_NODE
++5	545	203	4	4	-1	RT_NODE
++6	545	249	4	4	-1	RT_NODE
++7	965	299	2	2	-1	RT_NODE
++8	115	899	2	2	-1	RT_NODE
++9	896	482	3	3	-1	RT_NODE
++
++
++Edges: ( 20 )
++0	2	1	849.0606574326713	2.8321614996487714	10.0	-1	-1	E_RT	U
++1	2	0	815.4489560971919	2.720044932208374	10.0	-1	-1	E_RT	U
++2	3	1	206.93960471596537	0.6902762200774423	10.0	-1	-1	E_RT	U
++3	3	0	751.6415369043943	2.507206291708627	10.0	-1	-1	E_RT	U
++4	4	1	67.0	0.22348794378276188	10.0	-1	-1	E_RT	U
++5	4	3	251.24689052802225	0.8380694171032891	10.0	-1	-1	E_RT	U
++6	5	3	222.89459392277777	0.7434963354641089	10.0	-1	-1	E_RT	U
++7	5	0	815.5666741597526	2.72043759739864	10.0	-1	-1	E_RT	U
++8	6	5	46.0	0.15343948379114994	10.0	-1	-1	E_RT	U
++9	6	2	568.6492767954603	1.8968098149936126	10.0	-1	-1	E_RT	U
++10	7	2	395.72970573359794	1.3200122123605855	10.0	-1	-1	E_RT	U
++11	7	6	422.965719651132	1.410861775752651	10.0	-1	-1	E_RT	U
++12	8	0	3.0	0.010006922855944561	10.0	-1	-1	E_RT	U
++13	8	4	541.4065016233181	1.8059376984837898	10.0	-1	-1	E_RT	U
++14	9	2	208.153789300123	0.6943263038996231	10.0	-1	-1	E_RT	U
++15	9	3	649.6522146502696	2.1670065317329286	10.0	-1	-1	E_RT	U
++16	0	4	538.4143385906434	1.7959569169369944	10.0	-1	-1	E_RT	U
++17	0	9	883.9440027513056	2.948519814835721	10.0	-1	-1	E_RT	U
++18	1	5	401.00124688085447	1.3375961808914303	10.0	-1	-1	E_RT	U
++19	1	6	393.35734389992007	1.3120988650752516	10.0	-1	-1	E_RT	U
+diff --git a/examples/ndn-nlsr-conf/15_node_router.brite b/examples/ndn-nlsr-conf/15_node_router.brite
+new file mode 100644
+index 0000000..58f140e
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/15_node_router.brite
+@@ -0,0 +1,52 @@
++Topology: ( 15 Nodes, 30 Edges )
++Model (1 - RTWaxman):  15 1000 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 15 )
++0	115	896	6	6	-1	RT_NODE
++1	154	292	7	7	-1	RT_NODE
++2	904	690	7	7	-1	RT_NODE
++3	324	174	7	7	-1	RT_NODE
++4	154	359	3	3	-1	RT_NODE
++5	545	203	4	4	-1	RT_NODE
++6	545	249	3	3	-1	RT_NODE
++7	965	299	2	2	-1	RT_NODE
++8	115	899	3	3	-1	RT_NODE
++9	896	482	3	3	-1	RT_NODE
++10	65	145	3	3	-1	RT_NODE
++11	169	316	3	3	-1	RT_NODE
++12	182	62	2	2	-1	RT_NODE
++13	960	881	4	4	-1	RT_NODE
++14	815	938	3	3	-1	RT_NODE
++
++
++Edges: ( 30 )
++0	2	1	849.0606574326713	2.8321614996487714	10.0	-1	-1	E_RT	U
++1	2	0	815.4489560971919	2.720044932208374	10.0	-1	-1	E_RT	U
++2	3	1	206.93960471596537	0.6902762200774423	10.0	-1	-1	E_RT	U
++3	3	0	751.6415369043943	2.507206291708627	10.0	-1	-1	E_RT	U
++4	4	1	67.0	0.22348794378276188	10.0	-1	-1	E_RT	U
++5	4	3	251.24689052802225	0.8380694171032891	10.0	-1	-1	E_RT	U
++6	5	3	222.89459392277777	0.7434963354641089	10.0	-1	-1	E_RT	U
++7	5	0	815.5666741597526	2.72043759739864	10.0	-1	-1	E_RT	U
++8	6	5	46.0	0.15343948379114994	10.0	-1	-1	E_RT	U
++9	6	2	568.6492767954603	1.8968098149936126	10.0	-1	-1	E_RT	U
++10	7	2	395.72970573359794	1.3200122123605855	10.0	-1	-1	E_RT	U
++11	7	6	422.965719651132	1.410861775752651	10.0	-1	-1	E_RT	U
++12	8	0	3.0	0.010006922855944561	10.0	-1	-1	E_RT	U
++13	8	4	541.4065016233181	1.8059376984837898	10.0	-1	-1	E_RT	U
++14	9	2	208.153789300123	0.6943263038996231	10.0	-1	-1	E_RT	U
++15	9	3	649.6522146502696	2.1670065317329286	10.0	-1	-1	E_RT	U
++16	10	1	171.8429515575195	0.5732063865246387	10.0	-1	-1	E_RT	U
++17	10	3	260.6184951226601	0.8693297251749411	10.0	-1	-1	E_RT	U
++18	11	3	210.21179795625173	0.7011910818525386	10.0	-1	-1	E_RT	U
++19	11	10	200.14244927051334	0.6676033500166082	10.0	-1	-1	E_RT	U
++20	12	1	231.69807940507405	0.7728616021590312	10.0	-1	-1	E_RT	U
++21	12	2	956.9054289740444	3.1918929360592667	10.0	-1	-1	E_RT	U
++22	13	2	199.04019694524018	0.6639266320210102	10.0	-1	-1	E_RT	U
++23	13	9	404.1002350902558	1.347933292872417	10.0	-1	-1	E_RT	U
++24	14	5	783.0229881682912	2.611883545677094	10.0	-1	-1	E_RT	U
++25	14	13	155.80115532305913	0.5196967140616298	10.0	-1	-1	E_RT	U
++26	0	14	701.2588680366189	2.3391477981631508	10.0	-1	-1	E_RT	U
++27	0	13	845.133125608031	2.8190606636542905	10.0	-1	-1	E_RT	U
++28	1	11	28.30194339616981	0.09440512141292698	10.0	-1	-1	E_RT	U
++29	1	8	608.2515926818442	2.0289089216575427	10.0	-1	-1	E_RT	U
+diff --git a/examples/ndn-nlsr-conf/20_node_router.brite b/examples/ndn-nlsr-conf/20_node_router.brite
+new file mode 100644
+index 0000000..2b9291f
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/20_node_router.brite
+@@ -0,0 +1,67 @@
++Topology: ( 20 Nodes, 40 Edges )
++Model (1 - RTWaxman):  20 1000 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 20 )
++0	115	896	6	6	-1	RT_NODE
++1	154	292	9	9	-1	RT_NODE
++2	904	690	7	7	-1	RT_NODE
++3	324	174	8	8	-1	RT_NODE
++4	154	359	3	3	-1	RT_NODE
++5	545	203	4	4	-1	RT_NODE
++6	545	249	4	4	-1	RT_NODE
++7	965	299	2	2	-1	RT_NODE
++8	115	899	2	2	-1	RT_NODE
++9	896	482	4	4	-1	RT_NODE
++10	65	145	3	3	-1	RT_NODE
++11	169	316	5	5	-1	RT_NODE
++12	182	62	2	2	-1	RT_NODE
++13	960	881	3	3	-1	RT_NODE
++14	815	938	2	2	-1	RT_NODE
++15	300	182	4	4	-1	RT_NODE
++16	290	423	3	3	-1	RT_NODE
++17	821	504	4	4	-1	RT_NODE
++18	689	419	3	3	-1	RT_NODE
++19	361	669	2	2	-1	RT_NODE
++
++
++Edges: ( 40 )
++0	2	1	849.0606574326713	2.8321614996487714	10.0	-1	-1	E_RT	U
++1	2	0	815.4489560971919	2.720044932208374	10.0	-1	-1	E_RT	U
++2	3	1	206.93960471596537	0.6902762200774423	10.0	-1	-1	E_RT	U
++3	3	0	751.6415369043943	2.507206291708627	10.0	-1	-1	E_RT	U
++4	4	1	67.0	0.22348794378276188	10.0	-1	-1	E_RT	U
++5	4	3	251.24689052802225	0.8380694171032891	10.0	-1	-1	E_RT	U
++6	5	3	222.89459392277777	0.7434963354641089	10.0	-1	-1	E_RT	U
++7	5	0	815.5666741597526	2.72043759739864	10.0	-1	-1	E_RT	U
++8	6	5	46.0	0.15343948379114994	10.0	-1	-1	E_RT	U
++9	6	2	568.6492767954603	1.8968098149936126	10.0	-1	-1	E_RT	U
++10	7	2	395.72970573359794	1.3200122123605855	10.0	-1	-1	E_RT	U
++11	7	6	422.965719651132	1.410861775752651	10.0	-1	-1	E_RT	U
++12	8	0	3.0	0.010006922855944561	10.0	-1	-1	E_RT	U
++13	8	4	541.4065016233181	1.8059376984837898	10.0	-1	-1	E_RT	U
++14	9	2	208.153789300123	0.6943263038996231	10.0	-1	-1	E_RT	U
++15	9	3	649.6522146502696	2.1670065317329286	10.0	-1	-1	E_RT	U
++16	10	1	171.8429515575195	0.5732063865246387	10.0	-1	-1	E_RT	U
++17	10	3	260.6184951226601	0.8693297251749411	10.0	-1	-1	E_RT	U
++18	11	3	210.21179795625173	0.7011910818525386	10.0	-1	-1	E_RT	U
++19	11	10	200.14244927051334	0.6676033500166082	10.0	-1	-1	E_RT	U
++20	12	1	231.69807940507405	0.7728616021590312	10.0	-1	-1	E_RT	U
++21	12	2	956.9054289740444	3.1918929360592667	10.0	-1	-1	E_RT	U
++22	13	2	199.04019694524018	0.6639266320210102	10.0	-1	-1	E_RT	U
++23	13	9	404.1002350902558	1.347933292872417	10.0	-1	-1	E_RT	U
++24	14	5	783.0229881682912	2.611883545677094	10.0	-1	-1	E_RT	U
++25	14	13	155.80115532305913	0.5196967140616298	10.0	-1	-1	E_RT	U
++26	15	1	182.80043763623763	0.6097566258195782	10.0	-1	-1	E_RT	U
++27	15	3	25.298221281347036	0.0843857829183516	10.0	-1	-1	E_RT	U
++28	16	15	241.2073796549351	0.8045812134971557	10.0	-1	-1	E_RT	U
++29	16	11	161.5239920259526	0.5387860425293041	10.0	-1	-1	E_RT	U
++30	17	9	78.16009211867653	0.26071400408170553	10.0	-1	-1	E_RT	U
++31	17	11	678.5631879198871	2.263443158132708	10.0	-1	-1	E_RT	U
++32	18	6	222.79138223908032	0.7431520583452447	10.0	-1	-1	E_RT	U
++33	18	17	157.0	0.5236956294610987	10.0	-1	-1	E_RT	U
++34	19	11	401.8370316434263	1.3403840587725069	10.0	-1	-1	E_RT	U
++35	19	1	430.09068811124007	1.4346281123297642	10.0	-1	-1	E_RT	U
++36	0	15	737.5777925073395	2.46029468995961	10.0	-1	-1	E_RT	U
++37	0	17	807.5270893288967	2.6936204289999077	10.0	-1	-1	E_RT	U
++38	1	16	188.83061192507955	0.6298711221250254	10.0	-1	-1	E_RT	U
++39	1	18	549.8672567083805	1.8341597396302096	10.0	-1	-1	E_RT	U
+diff --git a/examples/ndn-nlsr-conf/25_node_router.brite b/examples/ndn-nlsr-conf/25_node_router.brite
+new file mode 100644
+index 0000000..f3d4331
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/25_node_router.brite
+@@ -0,0 +1,82 @@
++Topology: ( 25 Nodes, 50 Edges )
++Model (1 - RTWaxman):  25 1000 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 25 )
++0	115	896	6	6	-1	RT_NODE
++1	154	292	10	10	-1	RT_NODE
++2	904	690	7	7	-1	RT_NODE
++3	324	174	8	8	-1	RT_NODE
++4	154	359	3	3	-1	RT_NODE
++5	545	203	5	5	-1	RT_NODE
++6	545	249	4	4	-1	RT_NODE
++7	965	299	2	2	-1	RT_NODE
++8	115	899	3	3	-1	RT_NODE
++9	896	482	4	4	-1	RT_NODE
++10	65	145	3	3	-1	RT_NODE
++11	169	316	5	5	-1	RT_NODE
++12	182	62	4	4	-1	RT_NODE
++13	960	881	4	4	-1	RT_NODE
++14	815	938	2	2	-1	RT_NODE
++15	300	182	3	3	-1	RT_NODE
++16	290	423	4	4	-1	RT_NODE
++17	821	504	5	5	-1	RT_NODE
++18	689	419	3	3	-1	RT_NODE
++19	361	669	3	3	-1	RT_NODE
++20	175	67	2	2	-1	RT_NODE
++21	697	550	2	2	-1	RT_NODE
++22	423	384	2	2	-1	RT_NODE
++23	37	480	2	2	-1	RT_NODE
++24	260	750	4	4	-1	RT_NODE
++
++
++Edges: ( 50 )
++0	2	1	849.0606574326713	2.8321614996487714	10.0	-1	-1	E_RT	U
++1	2	0	815.4489560971919	2.720044932208374	10.0	-1	-1	E_RT	U
++2	3	1	206.93960471596537	0.6902762200774423	10.0	-1	-1	E_RT	U
++3	3	0	751.6415369043943	2.507206291708627	10.0	-1	-1	E_RT	U
++4	4	1	67.0	0.22348794378276188	10.0	-1	-1	E_RT	U
++5	4	3	251.24689052802225	0.8380694171032891	10.0	-1	-1	E_RT	U
++6	5	3	222.89459392277777	0.7434963354641089	10.0	-1	-1	E_RT	U
++7	5	0	815.5666741597526	2.72043759739864	10.0	-1	-1	E_RT	U
++8	6	5	46.0	0.15343948379114994	10.0	-1	-1	E_RT	U
++9	6	2	568.6492767954603	1.8968098149936126	10.0	-1	-1	E_RT	U
++10	7	2	395.72970573359794	1.3200122123605855	10.0	-1	-1	E_RT	U
++11	7	6	422.965719651132	1.410861775752651	10.0	-1	-1	E_RT	U
++12	8	0	3.0	0.010006922855944561	10.0	-1	-1	E_RT	U
++13	8	4	541.4065016233181	1.8059376984837898	10.0	-1	-1	E_RT	U
++14	9	2	208.153789300123	0.6943263038996231	10.0	-1	-1	E_RT	U
++15	9	3	649.6522146502696	2.1670065317329286	10.0	-1	-1	E_RT	U
++16	10	1	171.8429515575195	0.5732063865246387	10.0	-1	-1	E_RT	U
++17	10	3	260.6184951226601	0.8693297251749411	10.0	-1	-1	E_RT	U
++18	11	3	210.21179795625173	0.7011910818525386	10.0	-1	-1	E_RT	U
++19	11	10	200.14244927051334	0.6676033500166082	10.0	-1	-1	E_RT	U
++20	12	1	231.69807940507405	0.7728616021590312	10.0	-1	-1	E_RT	U
++21	12	2	956.9054289740444	3.1918929360592667	10.0	-1	-1	E_RT	U
++22	13	2	199.04019694524018	0.6639266320210102	10.0	-1	-1	E_RT	U
++23	13	9	404.1002350902558	1.347933292872417	10.0	-1	-1	E_RT	U
++24	14	5	783.0229881682912	2.611883545677094	10.0	-1	-1	E_RT	U
++25	14	13	155.80115532305913	0.5196967140616298	10.0	-1	-1	E_RT	U
++26	15	1	182.80043763623763	0.6097566258195782	10.0	-1	-1	E_RT	U
++27	15	3	25.298221281347036	0.0843857829183516	10.0	-1	-1	E_RT	U
++28	16	15	241.2073796549351	0.8045812134971557	10.0	-1	-1	E_RT	U
++29	16	11	161.5239920259526	0.5387860425293041	10.0	-1	-1	E_RT	U
++30	17	9	78.16009211867653	0.26071400408170553	10.0	-1	-1	E_RT	U
++31	17	11	678.5631879198871	2.263443158132708	10.0	-1	-1	E_RT	U
++32	18	6	222.79138223908032	0.7431520583452447	10.0	-1	-1	E_RT	U
++33	18	17	157.0	0.5236956294610987	10.0	-1	-1	E_RT	U
++34	19	11	401.8370316434263	1.3403840587725069	10.0	-1	-1	E_RT	U
++35	19	1	430.09068811124007	1.4346281123297642	10.0	-1	-1	E_RT	U
++36	20	12	8.602325267042627	0.028694268443012757	10.0	-1	-1	E_RT	U
++37	20	1	225.97787502319778	0.7537810541691404	10.0	-1	-1	E_RT	U
++38	21	13	422.7647099747092	1.4101912796442304	10.0	-1	-1	E_RT	U
++39	21	17	132.25732493892352	0.44116294926580013	10.0	-1	-1	E_RT	U
++40	22	18	268.2927505543152	0.8949282858687366	10.0	-1	-1	E_RT	U
++41	22	5	218.27734651126764	0.728094855912845	10.0	-1	-1	E_RT	U
++42	23	17	784.3672609179962	2.6163675569116425	10.0	-1	-1	E_RT	U
++43	23	12	442.4353060052961	1.4758053253137413	10.0	-1	-1	E_RT	U
++44	24	8	207.90863377935992	0.6935085531049614	10.0	-1	-1	E_RT	U
++45	24	19	129.46814279968643	0.4318592390996255	10.0	-1	-1	E_RT	U
++46	0	16	504.33520598903266	1.6822811666230533	10.0	-1	-1	E_RT	U
++47	0	24	205.7692882818036	0.6863724646528753	10.0	-1	-1	E_RT	U
++48	1	16	188.83061192507955	0.6298711221250254	10.0	-1	-1	E_RT	U
++49	1	24	470.1063709417263	1.5681060627006378	10.0	-1	-1	E_RT	U
+diff --git a/examples/ndn-nlsr-conf/50_node_router.brite b/examples/ndn-nlsr-conf/50_node_router.brite
+new file mode 100644
+index 0000000..ed550f4
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/50_node_router.brite
+@@ -0,0 +1,157 @@
++Topology: ( 50 Nodes, 100 Edges )
++Model (1 - RTWaxman):  50 1000 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 50 )
++0	115	896	6	6	-1	RT_NODE
++1	154	292	11	11	-1	RT_NODE
++2	904	690	7	7	-1	RT_NODE
++3	324	174	9	9	-1	RT_NODE
++4	154	359	7	7	-1	RT_NODE
++5	545	203	7	7	-1	RT_NODE
++6	545	249	7	7	-1	RT_NODE
++7	965	299	3	3	-1	RT_NODE
++8	115	899	4	4	-1	RT_NODE
++9	896	482	5	5	-1	RT_NODE
++10	65	145	5	5	-1	RT_NODE
++11	169	316	7	7	-1	RT_NODE
++12	182	62	5	5	-1	RT_NODE
++13	960	881	6	6	-1	RT_NODE
++14	815	938	3	3	-1	RT_NODE
++15	300	182	5	5	-1	RT_NODE
++16	290	423	3	3	-1	RT_NODE
++17	821	504	5	5	-1	RT_NODE
++18	689	419	4	4	-1	RT_NODE
++19	361	669	8	8	-1	RT_NODE
++20	175	67	2	2	-1	RT_NODE
++21	697	550	3	3	-1	RT_NODE
++22	423	384	3	3	-1	RT_NODE
++23	37	480	3	3	-1	RT_NODE
++24	260	750	3	3	-1	RT_NODE
++25	901	368	5	5	-1	RT_NODE
++26	320	433	4	4	-1	RT_NODE
++27	653	463	3	3	-1	RT_NODE
++28	383	771	4	4	-1	RT_NODE
++29	285	689	2	2	-1	RT_NODE
++30	55	497	2	2	-1	RT_NODE
++31	999	392	2	2	-1	RT_NODE
++32	654	872	2	2	-1	RT_NODE
++33	756	156	2	2	-1	RT_NODE
++34	453	0	4	4	-1	RT_NODE
++35	248	78	3	3	-1	RT_NODE
++36	941	706	3	3	-1	RT_NODE
++37	690	504	3	3	-1	RT_NODE
++38	383	835	3	3	-1	RT_NODE
++39	389	781	4	4	-1	RT_NODE
++40	768	687	2	2	-1	RT_NODE
++41	335	14	3	3	-1	RT_NODE
++42	165	588	3	3	-1	RT_NODE
++43	924	164	2	2	-1	RT_NODE
++44	641	250	2	2	-1	RT_NODE
++45	522	92	2	2	-1	RT_NODE
++46	130	677	3	3	-1	RT_NODE
++47	749	283	2	2	-1	RT_NODE
++48	74	852	2	2	-1	RT_NODE
++49	281	100	2	2	-1	RT_NODE
++
++
++Edges: ( 100 )
++0	2	1	849.0606574326713	2.8321614996487714	10.0	-1	-1	E_RT	U
++1	2	0	815.4489560971919	2.720044932208374	10.0	-1	-1	E_RT	U
++2	3	1	206.93960471596537	0.6902762200774423	10.0	-1	-1	E_RT	U
++3	3	0	751.6415369043943	2.507206291708627	10.0	-1	-1	E_RT	U
++4	4	1	67.0	0.22348794378276188	10.0	-1	-1	E_RT	U
++5	4	3	251.24689052802225	0.8380694171032891	10.0	-1	-1	E_RT	U
++6	5	3	222.89459392277777	0.7434963354641089	10.0	-1	-1	E_RT	U
++7	5	0	815.5666741597526	2.72043759739864	10.0	-1	-1	E_RT	U
++8	6	5	46.0	0.15343948379114994	10.0	-1	-1	E_RT	U
++9	6	2	568.6492767954603	1.8968098149936126	10.0	-1	-1	E_RT	U
++10	7	2	395.72970573359794	1.3200122123605855	10.0	-1	-1	E_RT	U
++11	7	6	422.965719651132	1.410861775752651	10.0	-1	-1	E_RT	U
++12	8	0	3.0	0.010006922855944561	10.0	-1	-1	E_RT	U
++13	8	4	541.4065016233181	1.8059376984837898	10.0	-1	-1	E_RT	U
++14	9	2	208.153789300123	0.6943263038996231	10.0	-1	-1	E_RT	U
++15	9	3	649.6522146502696	2.1670065317329286	10.0	-1	-1	E_RT	U
++16	10	1	171.8429515575195	0.5732063865246387	10.0	-1	-1	E_RT	U
++17	10	3	260.6184951226601	0.8693297251749411	10.0	-1	-1	E_RT	U
++18	11	3	210.21179795625173	0.7011910818525386	10.0	-1	-1	E_RT	U
++19	11	10	200.14244927051334	0.6676033500166082	10.0	-1	-1	E_RT	U
++20	12	1	231.69807940507405	0.7728616021590312	10.0	-1	-1	E_RT	U
++21	12	2	956.9054289740444	3.1918929360592667	10.0	-1	-1	E_RT	U
++22	13	2	199.04019694524018	0.6639266320210102	10.0	-1	-1	E_RT	U
++23	13	9	404.1002350902558	1.347933292872417	10.0	-1	-1	E_RT	U
++24	14	5	783.0229881682912	2.611883545677094	10.0	-1	-1	E_RT	U
++25	14	13	155.80115532305913	0.5196967140616298	10.0	-1	-1	E_RT	U
++26	15	1	182.80043763623763	0.6097566258195782	10.0	-1	-1	E_RT	U
++27	15	3	25.298221281347036	0.0843857829183516	10.0	-1	-1	E_RT	U
++28	16	15	241.2073796549351	0.8045812134971557	10.0	-1	-1	E_RT	U
++29	16	11	161.5239920259526	0.5387860425293041	10.0	-1	-1	E_RT	U
++30	17	9	78.16009211867653	0.26071400408170553	10.0	-1	-1	E_RT	U
++31	17	11	678.5631879198871	2.263443158132708	10.0	-1	-1	E_RT	U
++32	18	6	222.79138223908032	0.7431520583452447	10.0	-1	-1	E_RT	U
++33	18	17	157.0	0.5236956294610987	10.0	-1	-1	E_RT	U
++34	19	11	401.8370316434263	1.3403840587725069	10.0	-1	-1	E_RT	U
++35	19	1	430.09068811124007	1.4346281123297642	10.0	-1	-1	E_RT	U
++36	20	12	8.602325267042627	0.028694268443012757	10.0	-1	-1	E_RT	U
++37	20	1	225.97787502319778	0.7537810541691404	10.0	-1	-1	E_RT	U
++38	21	13	422.7647099747092	1.4101912796442304	10.0	-1	-1	E_RT	U
++39	21	17	132.25732493892352	0.44116294926580013	10.0	-1	-1	E_RT	U
++40	22	18	268.2927505543152	0.8949282858687366	10.0	-1	-1	E_RT	U
++41	22	5	218.27734651126764	0.728094855912845	10.0	-1	-1	E_RT	U
++42	23	17	784.3672609179962	2.6163675569116425	10.0	-1	-1	E_RT	U
++43	23	12	442.4353060052961	1.4758053253137413	10.0	-1	-1	E_RT	U
++44	24	8	207.90863377935992	0.6935085531049614	10.0	-1	-1	E_RT	U
++45	24	19	129.46814279968643	0.4318592390996255	10.0	-1	-1	E_RT	U
++46	25	4	747.0542149000968	2.491904632571166	10.0	-1	-1	E_RT	U
++47	25	6	375.3624914665822	1.2520744983737455	10.0	-1	-1	E_RT	U
++48	26	22	114.06138698087096	0.380467833453205	10.0	-1	-1	E_RT	U
++49	26	10	384.66738879192764	1.283112294946151	10.0	-1	-1	E_RT	U
++50	27	6	239.70815588961506	0.7995803413093703	10.0	-1	-1	E_RT	U
++51	27	1	527.48649271806	1.7595055467274634	10.0	-1	-1	E_RT	U
++52	28	16	360.2124373199793	1.2015393573375996	10.0	-1	-1	E_RT	U
++53	28	8	296.99831649354513	0.9906797471654377	10.0	-1	-1	E_RT	U
++54	29	11	390.6212999824766	1.3029724049378073	10.0	-1	-1	E_RT	U
++55	29	19	78.587530817554	0.2621397861101429	10.0	-1	-1	E_RT	U
++56	30	5	571.4332856948395	1.9060962690890626	10.0	-1	-1	E_RT	U
++57	30	27	598.965775316086	1.997934768979699	10.0	-1	-1	E_RT	U
++58	31	6	475.988445237907	1.587726550605576	10.0	-1	-1	E_RT	U
++59	31	25	100.89598604503551	0.33655278294237645	10.0	-1	-1	E_RT	U
++60	32	19	356.45196029759745	1.188995756182757	10.0	-1	-1	E_RT	U
++61	32	26	551.6130890397725	1.839983209450094	10.0	-1	-1	E_RT	U
++62	33	3	432.3748373807153	1.4422472141734644	10.0	-1	-1	E_RT	U
++63	33	11	608.4151543148806	2.029454504538872	10.0	-1	-1	E_RT	U
++64	34	4	467.2065924192423	1.5584334427093638	10.0	-1	-1	E_RT	U
++65	34	13	1016.4693797650768	3.3905768895796466	10.0	-1	-1	E_RT	U
++66	35	14	1030.0917434869575	3.436016203873139	10.0	-1	-1	E_RT	U
++67	35	15	116.27553482998907	0.3878534356924652	10.0	-1	-1	E_RT	U
++68	36	9	228.47538160598398	0.7621118394045255	10.0	-1	-1	E_RT	U
++69	36	25	340.3586343843799	1.1353141992130433	10.0	-1	-1	E_RT	U
++70	37	5	334.1047739856466	1.114453566359053	10.0	-1	-1	E_RT	U
++71	37	34	556.9425464085142	1.8577603657011086	10.0	-1	-1	E_RT	U
++72	38	18	516.4223078063146	1.7225993984355492	10.0	-1	-1	E_RT	U
++73	38	28	64.0	0.2134810209268173	10.0	-1	-1	E_RT	U
++74	39	28	11.661903789690601	0.038899923858960454	10.0	-1	-1	E_RT	U
++75	39	13	579.6904346286905	1.9336391532194266	10.0	-1	-1	E_RT	U
++76	40	21	154.30489298787643	0.5147057201414867	10.0	-1	-1	E_RT	U
++77	40	37	198.92963580120485	0.6635578397412681	10.0	-1	-1	E_RT	U
++78	41	15	171.60710940983768	0.5724197017986279	10.0	-1	-1	E_RT	U
++79	41	10	300.1016494456503	1.0010313516481137	10.0	-1	-1	E_RT	U
++80	42	23	167.47537132366656	0.5586377070355338	10.0	-1	-1	E_RT	U
++81	42	26	219.20310216782974	0.7311828443924021	10.0	-1	-1	E_RT	U
++82	43	19	756.3028493930193	2.5227547565356674	10.0	-1	-1	E_RT	U
++83	43	4	794.3078748193298	2.6495258757287674	10.0	-1	-1	E_RT	U
++84	44	12	496.0090724976711	1.6545081747776027	10.0	-1	-1	E_RT	U
++85	44	41	386.4349880639692	1.2890083714646656	10.0	-1	-1	E_RT	U
++86	45	38	755.8902036671728	2.521378318553874	10.0	-1	-1	E_RT	U
++87	45	34	115.0	0.38359870947787483	10.0	-1	-1	E_RT	U
++88	46	19	231.1384866265244	0.7709950015704679	10.0	-1	-1	E_RT	U
++89	46	24	149.093930124603	0.49732381901549705	10.0	-1	-1	E_RT	U
++90	47	25	174.15223225672418	0.5809093177945263	10.0	-1	-1	E_RT	U
++91	47	36	464.5352516225222	1.549522808951125	10.0	-1	-1	E_RT	U
++92	48	39	322.9024620531717	1.0770866759202185	10.0	-1	-1	E_RT	U
++93	48	46	183.74166647769363	0.6128962272883249	10.0	-1	-1	E_RT	U
++94	49	19	574.5963800790952	1.9166472162521684	10.0	-1	-1	E_RT	U
++95	49	7	712.3601617159679	2.376177727979961	10.0	-1	-1	E_RT	U
++96	0	4	538.4143385906434	1.7959569169369944	10.0	-1	-1	E_RT	U
++97	0	42	312.03204963593083	1.0408268830963414	10.0	-1	-1	E_RT	U
++98	1	39	542.5366347077403	1.8097074166813774	10.0	-1	-1	E_RT	U
++99	1	35	233.73489255992567	0.7796556795298889	10.0	-1	-1	E_RT	U
+diff --git a/examples/ndn-nlsr-conf/5_node_router.brite b/examples/ndn-nlsr-conf/5_node_router.brite
+new file mode 100644
+index 0000000..e2e893f
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/5_node_router.brite
+@@ -0,0 +1,19 @@
++Topology: ( 5 Nodes, 7 Edges )
++Model (3 - ASWaxman):  5 500 100 1  2  0.15000000596046448 0.20000000298023224 1 1 10.0 1024.0 
++
++Nodes: ( 5 )
++0	289	154	4	4	0	AS_NODE
++1	289	381	3	3	1	AS_NODE
++2	246	68	3	3	2	AS_NODE
++3	269	99	2	2	3	AS_NODE
++4	205	435	2	2	4	AS_NODE
++
++
++Edges: ( 7 )
++0	2	1	315.93986769637036	1.0538619610516364	10.0	2	1	E_AS	U
++1	2	0	96.15092303249095	0.32072495643800003	10.0	2	0	E_AS	U
++2	3	2	38.600518131237564	0.12875746904626123	10.0	3	2	E_AS	U
++3	3	0	58.52349955359813	0.19521338176425415	10.0	3	0	E_AS	U
++4	4	0	293.2865492994863	0.9782986245087135	10.0	4	0	E_AS	U
++5	4	1	99.85990186255943	0.33309677811360894	10.0	4	1	E_AS	U
++6	1	0	227.0	0.7571904960998052	10.0	1	0	E_AS	U
+diff --git a/examples/ndn-nlsr-conf/nlsr_sim.conf b/examples/ndn-nlsr-conf/nlsr_sim.conf
+new file mode 100644
+index 0000000..a00c74a
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/nlsr_sim.conf
+@@ -0,0 +1,125 @@
++ndn-node
++{
++    node-id 0
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_0.conf
++}
++ndn-node
++{
++    node-id 1
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_1.conf
++}
++ndn-node
++{
++    node-id 10
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_10.conf
++}
++ndn-node
++{
++    node-id 11
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_11.conf
++}
++ndn-node
++{
++    node-id 12
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_12.conf
++}
++ndn-node
++{
++    node-id 13
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_13.conf
++}
++ndn-node
++{
++    node-id 14
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_14.conf
++}
++ndn-node
++{
++    node-id 15
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_15.conf
++}
++ndn-node
++{
++    node-id 16
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_16.conf
++}
++ndn-node
++{
++    node-id 17
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_17.conf
++}
++ndn-node
++{
++    node-id 18
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_18.conf
++}
++ndn-node
++{
++    node-id 19
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_19.conf
++}
++ndn-node
++{
++    node-id 2
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_2.conf
++}
++ndn-node
++{
++    node-id 20
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_20.conf
++}
++ndn-node
++{
++    node-id 21
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_21.conf
++}
++ndn-node
++{
++    node-id 22
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_22.conf
++}
++ndn-node
++{
++    node-id 23
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_23.conf
++}
++ndn-node
++{
++    node-id 24
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_24.conf
++}
++ndn-node
++{
++    node-id 3
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_3.conf
++}
++ndn-node
++{
++    node-id 4
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_4.conf
++}
++ndn-node
++{
++    node-id 5
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_5.conf
++}
++ndn-node
++{
++    node-id 6
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_6.conf
++}
++ndn-node
++{
++    node-id 7
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_7.conf
++}
++ndn-node
++{
++    node-id 8
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_8.conf
++}
++ndn-node
++{
++    node-id 9
++    nlsr-config src/ndnSIM/examples/ndn-nlsr-conf/nlsr_node_9.conf
++}
+diff --git a/examples/ndn-nlsr-conf/rate-plot.R b/examples/ndn-nlsr-conf/rate-plot.R
+new file mode 100644
+index 0000000..4c5cbaf
+--- /dev/null
++++ b/examples/ndn-nlsr-conf/rate-plot.R
+@@ -0,0 +1,47 @@
++# Copyright (c) 2012,2015  Alexander Afanasyev <alexander.afanasyev@ucla.edu>
++
++# install.packages('ggplot2')
++library(ggplot2)
++# install.packages('scales')
++library(scales)
++
++# install.packages('doBy')
++library(doBy)
++
++#########################
++# Rate trace processing #
++#########################
++data = read.table("nlsr-l3-rate-trace.txt", header=T)
++data$Node = factor(data$Node)
++data$FaceId <- factor(data$FaceId)
++data$Kilobits <- data$Kilobytes * 8
++data$Type = factor(data$Type)
++
++# exlude irrelevant types
++data = subset(data, Type %in% c("InInterests", "OutInterests", "InData", "OutData"))
++
++# combine stats from all faces
++data.combined = summaryBy(. ~ Time + Node + Type, data=data, FUN=sum)
++
++data.root = subset (data.combined, Node == "root")
++data.leaves = subset(data.combined, Node %in% c("leaf-1", "leaf-2", "leaf-3", "leaf-4"))
++
++# graph rates on all nodes in Kilobits
++g.all <- ggplot(data.combined) +
++  geom_point(aes (x=Time, y=Kilobits.sum, color=Type), size=1) +
++    ylab("Rate [Kbits/s]") +
++      facet_wrap(~ Node)
++
++print(g.all)
++
++# graph rates on the root nodes in Packets
++g.root <- ggplot(data.root) +
++  geom_point(aes (x=Time, y=Kilobits.sum, color=Type), size=2) +
++    geom_line(aes (x=Time, y=Kilobits.sum, color=Type), size=0.5) +
++      ylab("Rate [Kbits/s]")
++
++print(g.root)
++
++png("src/ndnSIM/docs/source/_static/root-rates.png", width=500, height=250)
++print(g.root)
++retval <- dev.off()
+diff --git a/examples/ndn-nlsr-simple.cpp b/examples/ndn-nlsr-simple.cpp
+new file mode 100644
+index 0000000..4559511
+--- /dev/null
++++ b/examples/ndn-nlsr-simple.cpp
+@@ -0,0 +1,106 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++// ndn-nlsr-simple.cpp
++
++#include "ns3/core-module.h"
++#include "ns3/network-module.h"
++#include "ns3/ndnSIM-module.h"
++#include "ns3/log.h"
++
++#include "utils/tracers/ndn-nlsr-tracer.hpp"
++
++#include "utils/topology/nlsr-conf-reader.hpp"
++
++namespace ns3 {
++
++NS_LOG_COMPONENT_DEFINE ("NdnNlsrSimple");
++
++/**
++ * This scenario simulates a very simple network topology:
++ *
++ *
++ *      +----------+     1Mbps      +---------+     1Mbps      +---------+
++ *      | router1  | <------------> | router2 | <------------> | router3 |
++ *      +----------+         10ms   +---------+          10ms  +---------+
++ *
++ *
++ * Consumer requests data from producer with frequency 10 interests per second
++ * (interests contain constantly increasing sequence number).
++ *
++ * For every received interest, producer replies with a data packet, containing
++ * 1024 bytes of virtual payload.
++ *
++ * To run scenario and see what is happening, use the following command:
++ *
++ *     NS_LOG=ndn.Consumer:ndn.Producer ./waf --run=ndn-nlsr-simple
++ */
++
++int
++main (int argc, char *argv[])
++{
++  CommandLine cmd;
++  cmd.Parse (argc, argv);
++
++  // Creating nodes
++  NodeContainer nodes;
++
++  // Build the NLSR network topology from nlsr.conf
++  ndn::NlsrConfReader nlsrConfReader("src/ndnSIM/examples/ndn-nlsr-conf/nlsr_sim.conf", 25);
++  nodes = nlsrConfReader.Read();
++
++  ns3::ndn::NlsrTracer &tracer = ndn::NlsrTracer::Instance();
++  std::string prefix = std::to_string(nodes.size());
++  tracer.InitializeTracer(prefix);
++
++  // Install NLSR app on all nodes.
++  NS_LOG_INFO ("Installing NLSR application on " << nodes.size() << " nodes");
++  ndn::AppHelper nlsrHelper ("ns3::ndn::NlsrApp");
++  nlsrHelper.Install(nodes);
++
++  // Install NDN stack on all nodes
++  NS_LOG_INFO ("Installing NDN stack on " << nodes.size() << " nodes");
++  ndn::StackHelper ndnHelper;
++  ndnHelper.Install(nodes);
++
++  ndn::StrategyChoiceHelper::InstallAll("/", "ndn:/localhost/nfd/strategy/best-route");
++
++  // Initialize the NLSR app on nodes.
++  nlsrConfReader.InitializeNlsr();
++
++  Simulator::Stop (Seconds (150.0));
++
++  //ndn::L3RateTracer::InstallAll ((prefix + "-nlsr-l3-rate-trace.txt"), Seconds (0.5));
++  //L2RateTracer::InstallAll ((prefix + "-nlsr-l2-rate-trace.txt"));
++  //ndn::AppDelayTracer::InstallAll((prefix + "-nlsr-app-delays-trace.txt"));
++
++  Simulator::Run ();
++  Simulator::Destroy ();
++
++  return 0;
++}
++
++} // namespace ns3
++
++int
++main(int argc, char* argv[])
++{
++  return ns3::main(argc, argv);
++}
++
+diff --git a/utils/topology/nlsr-conf-reader.cpp b/utils/topology/nlsr-conf-reader.cpp
+new file mode 100755
+index 0000000..9d8603a
+--- /dev/null
++++ b/utils/topology/nlsr-conf-reader.cpp
+@@ -0,0 +1,1135 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++// ndn-nlsr-conf-helper.cpp
++
++#include <iostream>
++#include <fstream>
++#include <stdlib.h>
++
++#include <ndn-cxx/name.hpp>
++#include <ndn-cxx/util/face-uri.hpp>
++
++// boost needs to be included after ndn-cxx, otherwise there will be conflict with _1, _2, ...
++#include <boost/algorithm/string.hpp>
++#include <boost/property_tree/info_parser.hpp>
++#include <boost/property_tree/ptree.hpp>
++#include <boost/filesystem.hpp>
++
++#include "ns3/nstime.h"
++#include "ns3/log.h"
++#include "ns3/assert.h"
++#include "ns3/names.h"
++#include "ns3/net-device-container.h"
++#include "ns3/point-to-point-helper.h"
++#include "ns3/point-to-point-net-device.h"
++#include "ns3/internet-stack-helper.h"
++#include "ns3/ipv4-address-helper.h"
++#include "ns3/ipv4-global-routing-helper.h"
++#include "ns3/drop-tail-queue.h"
++#include "ns3/ipv4-interface.h"
++#include "ns3/ipv4.h"
++#include "ns3/string.h"
++#include "ns3/pointer.h"
++#include "ns3/uinteger.h"
++#include "ns3/ipv4-address.h"
++#include "model/ndn-l3-protocol.hpp"
++#include "model/ndn-face.hpp"
++#include "ns3/random-variable-stream.h"
++#include "ns3/error-model.h"
++#include "ns3/double.h"
++#include "ns3/constant-position-mobility-model.h"
++
++#include <boost/foreach.hpp>
++#include <boost/lexical_cast.hpp>
++#include <boost/tokenizer.hpp>
++
++#include <boost/graph/adjacency_list.hpp>
++#include <boost/graph/graphviz.hpp>
++#include <set>
++#include <map>
++
++#include "utility/name-helper.hpp"
++#include "update/prefix-update-processor.hpp"
++
++#include "adjacent.hpp"
++#include "apps/ndn-app.hpp"
++#include "apps/ndn-nlsr-app.hpp"
++
++#include "nlsr-conf-reader.hpp"
++
++NS_LOG_COMPONENT_DEFINE("ndn.NlsrConfReader");
++
++namespace ns3 {
++namespace ndn {
++
++using namespace std;
++namespace pt = boost::property_tree;
++
++template <class T>
++class ConfigVariable
++{
++public:
++  typedef ndn::function<void(T)> ConfParameterCallback;
++  typedef boost::property_tree::ptree ConfigSection;
++
++  ConfigVariable(const std::string& key, const ConfParameterCallback& setter)
++    : m_key(key)
++    , m_setterCallback(setter)
++    , m_minValue(0)
++    , m_maxValue(0)
++    , m_shouldCheckRange(false)
++    , m_isRequired(true)
++  {
++  }
++
++  bool
++  ParseFromConfigSection(const ConfigSection& section)
++  {
++    try {
++      T value = section.get<T>(m_key);
++
++      if (!isValidValue(value)) {
++        return false;
++      }
++
++      m_setterCallback(value);
++      return true;
++    }
++    catch (const std::exception& ex) {
++
++      if (m_isRequired) {
++        std::cerr << ex.what() << std::endl;
++        std::cerr << "Missing required configuration variable" << std::endl;
++        return false;
++      }
++      else {
++        m_setterCallback(m_defaultValue);
++        return true;
++      }
++    }
++
++    return false;
++  }
++
++  void
++  SetMinAndMaxValue(T min, T max)
++  {
++    m_minValue = min;
++    m_maxValue = max;
++    m_shouldCheckRange = true;
++  }
++
++  void
++  SetOptional(T defaultValue)
++  {
++    m_isRequired = false;
++    m_defaultValue = defaultValue;
++  }
++
++private:
++  void
++  PrintOutOfRangeError(T value)
++  {
++    std::cerr << "Invalid value for " << m_key << ": "
++              << value << ". "
++              << "Valid values: "
++              << m_minValue << " - "
++              << m_maxValue << std::endl;
++  }
++
++  bool
++  IsValidValue(T value)
++  {
++    if (!m_shouldCheckRange) {
++      return true;
++    }
++    else if (value < m_minValue || value > m_maxValue)
++    {
++      printOutOfRangeError(value);
++      return false;
++    }
++
++    return true;
++  }
++
++private:
++  const std::string m_key;
++  const ConfParameterCallback m_setterCallback;
++  T m_defaultValue;
++
++  T m_minValue;
++  T m_maxValue;
++
++  bool m_shouldCheckRange;
++  bool m_isRequired;
++};
++
++NlsrConfReader::NlsrConfReader (const std::string &path, double scale/*=1.0*/)
++  : m_confFileName (path)
++  , m_randX(CreateObject<UniformRandomVariable>())
++  , m_randY(CreateObject<UniformRandomVariable>())
++  , m_scale (scale)
++  , m_requiredPartitions (1)
++{
++  m_path = m_confFileName;
++
++  NS_LOG_FUNCTION (this);
++
++  m_randX->SetAttribute("Min", DoubleValue(0));
++  m_randX->SetAttribute("Max", DoubleValue(100.0));
++
++  m_randY->SetAttribute("Min", DoubleValue(0));
++  m_randY->SetAttribute("Max", DoubleValue(100.0));
++
++  SetMobilityModel ("ns3::ConstantPositionMobilityModel");
++}
++
++NlsrConfReader::~NlsrConfReader ()
++{
++  NS_LOG_FUNCTION (this);
++}
++
++bool
++NlsrConfReader::ProcessConfFile()
++{
++  bool ret = true;
++  ifstream inputFile;
++  inputFile.open(m_confFileName.c_str());
++  if (!inputFile.is_open()) {
++    string msg = "Failed to read configuration file: ";
++    msg += m_confFileName;
++    cerr << msg << endl;
++    return false;
++  }
++  ret = Load(inputFile);
++  inputFile.close();
++
++  return ret;
++}
++
++bool
++NlsrConfReader::Load(istream& input)
++{
++  ConfigSection pt;
++  bool ret = true;
++  try {
++    boost::property_tree::read_info(input, pt);
++  }
++  catch (const boost::property_tree::info_parser_error& error) {
++    stringstream msg;
++    std::cerr << "Failed to parse configuration file " << std::endl;
++    std::cerr << m_confFileName << std::endl;
++    return false;
++  }
++
++  for (ConfigSection::const_iterator tn = pt.begin();
++       tn != pt.end(); ++tn) {
++    ret = ProcessSection(tn->first, tn->second);
++    if (ret == false) {
++      break;
++    }
++  }
++  return ret;
++}
++
++bool
++NlsrConfReader::ProcessSection(const std::string& sectionName, const ConfigSection& section)
++{
++  bool ret = true;
++  if (sectionName == "ndn-node")
++  {
++    ret = ProcessNlsrConfig(section);
++  }
++  else if (sectionName == "general")
++  {
++    ret = ProcessNodeId(section);
++  }
++  else if (sectionName == "neighbors")
++  {
++    ret = ProcessNeighborNodes(section);
++  }
++  else if (sectionName == "hyperbolic")
++  {
++    // Do nothing.
++  }
++  else if (sectionName == "fib")
++  {
++    // Do nothing.
++  }
++  else if (sectionName == "advertising")
++  {
++    // Do nothing.
++  }
++  else if (sectionName == "security")
++  {
++    // Do nothing.
++  }
++  else
++  {
++    std::cerr << "Wrong configuration section: " << sectionName << " " << m_confFileName << std::endl;
++  }
++  return ret;
++}
++
++bool
++NlsrConfReader::ProcessNlsrConfig(const ConfigSection& section)
++{
++  try {
++    //std::string nodeId = section.get<string>("node-id");
++    //if (nodeId.empty()) {
++    //  cerr << " Node id can not be null or empty!" << endl;
++    //  return false;
++    //}
++
++    std::string nlsrConfigFile = section.get<string>("nlsr-config");
++    if (nlsrConfigFile.empty()) {
++      cerr << "Config file path can not be null or empty!" << endl;
++      return false;
++    }
++
++    //m_srcNodeId = nodeId;
++    m_confFileName = nlsrConfigFile;
++    this->ProcessConfFile();
++  }
++  catch (const std::exception& ex) {
++    cerr << ex.what() << endl;
++    return false;
++  }
++
++  return true;
++}
++
++bool
++NlsrConfReader::ProcessNodeId(const ConfigSection& section)
++{
++  std::string nodeId;
++  std::string city;
++  double latitude;
++  double longitude;
++
++  try {
++    nodeId = section.get<string>("node-id");
++    if (nodeId.empty()) {
++      cerr << " Node id can not be null or empty!" << endl;
++      return false;
++    }
++
++    city = section.get<string>("city");
++    if (city.empty()) {
++      cerr << " Node id can not be null or empty!" << endl;
++      return false;
++    }
++
++    latitude = section.get<double>("latitude");
++    longitude = section.get<double>("longitude");
++  }
++  catch (const std::exception& ex) {
++    cerr << ex.what() << endl;
++    return false;
++  }
++
++  // Save the node configuration.
++  m_srcNodeId = nodeId;
++  NetworkNode node(m_confFileName, nodeId, city, latitude, longitude);
++  m_node_map[nodeId] = node;
++
++  return true;
++}
++
++bool
++NlsrConfReader::ProcessNeighborNodes(const ConfigSection& section)
++{
++  ADJACENCY_LIST adjList;
++
++  for (ConfigSection::const_iterator tn =
++           section.begin(); tn != section.end(); ++tn) {
++
++    if (tn->first == "neighbor")
++    {
++      try {
++        ConfigSection CommandAttriTree = tn->second;
++        std::string nodeId = CommandAttriTree.get<std::string>("node-id");
++        std::string bandwidth = CommandAttriTree.get<std::string>("bandwidth");
++        std::string metric = CommandAttriTree.get<std::string>("metric");
++        std::string delay = CommandAttriTree.get<std::string>("delay");
++        std::string queue = CommandAttriTree.get<std::string>("queue");
++        std::string name = CommandAttriTree.get<std::string>("name");
++        std::string faceUri = CommandAttriTree.get<std::string>("face-uri");
++        std::string linkCost = CommandAttriTree.get<std::string>("link-cost");
++
++        if (nodeId.empty()) {
++          cerr << " Node id can not be null or empty!" << endl;
++          return false;
++        }
++	
++        ::ndn::util::FaceUri uri;
++        if (!uri.parse(faceUri)) {
++          std::cerr << "Malformed face-uri <" << faceUri << "> for " << name << std::endl;
++          return false;
++        }
++
++        if (linkCost.empty()) {
++          linkCost = std::to_string(nlsr::Adjacent::DEFAULT_LINK_COST);
++        }
++
++        ndn::Name neighborName(name);
++        if (!neighborName.empty()) {
++	  // Save the neighbor link attributes
++	  NetworkLink adjLink(nodeId, bandwidth, metric, delay, queue, name, faceUri, linkCost);
++	  adjList.push_back(adjLink);
++        }
++        else {
++          std::cerr << " Wrong command format ! [name /nbr/name/ \n face-uri /uri\n]";
++          std::cerr << " or bad URI format" << std::endl;
++        }
++      }
++      catch (const std::exception& ex) {
++        std::cerr << ex.what() << std::endl;
++        return false;
++      }
++    }
++  }
++
++  m_adj_map[m_srcNodeId] = adjList;
++  return true;
++}
++
++void
++NlsrConfReader::PrintConfig()
++{
++  try {
++    NODE_MAP::iterator nodeIt;
++    for (nodeIt = m_node_map.begin(); nodeIt != m_node_map.end(); ++nodeIt) {
++      std::string nodeId = nodeIt->first;
++
++      ADJACENCY_LIST adjLinks = m_adj_map[nodeId];
++      ADJACENCY_LIST::iterator nodeIt;
++      for (nodeIt = adjLinks.begin(); nodeIt != adjLinks.end(); nodeIt++) {
++	NetworkLink link = (*nodeIt);
++      }
++    }
++  }
++  catch (const std::exception& ex) {
++    cerr << ex.what() << endl;
++  }
++}
++
++void
++NlsrConfReader::InitializeNlsr()
++{
++  // Copy over the NLSR config object from node to the application.
++  for (NodeContainer::Iterator it = m_nodes.Begin(); it != m_nodes.End(); ++it) {
++    NetworkNode node = m_node_map[Names::FindName (*it)];
++    std::string nodeConfig = node.GetConfigPath();
++    NS_ASSERT (!nodeConfig.empty());
++
++    Ptr<ndn::NlsrApp> nlsrApp = (*it)->GetApplication(0)->GetObject<ndn::NlsrApp> ();
++    NS_ASSERT (nlsrApp != 0);
++
++    // Set the node name Id mapping in NLSR.
++    NODE_MAP::iterator nodeIt;
++    for (nodeIt = m_node_map.begin(); nodeIt != m_node_map.end(); ++nodeIt) {
++      std::string nodeId = nodeIt->first;
++      NetworkNode& srcNode = nodeIt->second;
++      nlsrApp->SetNodeNameToIdMapping(srcNode.GetNodeId(), srcNode.GetNdnNodeId());
++    }
++
++    nlsrApp->SetNodeName(node.GetNodeId());
++    nlsrApp->Initialize(nodeConfig);
++    nlsrApp->SetStartTime(Seconds (1.0));
++  }
++}
++
++Ptr<Node>
++NlsrConfReader::CreateNode (const std::string name, uint32_t systemId)
++{
++  NS_LOG_FUNCTION (this << name);
++  m_requiredPartitions = std::max (m_requiredPartitions, systemId + 1);
++
++  Ptr<Node> node = CreateObject<Node> (systemId);
++
++  Names::Add (m_path, name, node);
++  m_nodes.Add (node);
++
++  return node;
++}
++
++Ptr<Node>
++NlsrConfReader::CreateNode (const std::string name, double posX, double posY, uint32_t systemId)
++{
++  NS_LOG_FUNCTION (this << name << posX << posY);
++  m_requiredPartitions = std::max (m_requiredPartitions, systemId + 1);
++
++  Ptr<Node> node = CreateObject<Node> (systemId);
++  Ptr<MobilityModel> loc = DynamicCast<MobilityModel> (m_mobilityFactory.Create ());
++
++  node->AggregateObject (loc);
++
++  loc->SetPosition (Vector (posX, posY, 0));
++
++  Names::Add (m_path, name, node);
++  m_nodes.Add (node);
++
++  return node;
++}
++
++NodeContainer
++NlsrConfReader::Read(void)
++{
++  ProcessConfFile();
++  PrintConfig();
++  BuildTopology();
++  SetLinkMTUSize();
++
++  //SaveGraphviz("nlsr_graph.dot");
++  //WriteGraphviz("src/ndnSIM/examples/ndn-nlsr-conf/nlsr_topo.dot");
++  return m_nodes;
++}
++
++/*
++NodeContainer
++NlsrConfReader::Read(void)
++{
++  ifstream topgen;
++  topgen.open (GetFileName ().c_str ());
++
++  if ( !topgen.is_open () || !topgen.good () )
++    {
++      NS_FATAL_ERROR ("Cannot open file " << GetFileName () << " for reading");
++      return m_nodes;
++    }
++
++  while (!topgen.eof ())
++    {
++      string line;
++      getline (topgen, line);
++
++      if (line == "router") break;
++    }
++
++  if (topgen.eof ())
++    {
++      NS_FATAL_ERROR ("Topology file " << GetFileName () << " does not have \"router\" section");
++      return m_nodes;
++    }
++
++  while (!topgen.eof ())
++    {
++      string line;
++      getline (topgen,line);
++      if (line[0] == '#') continue; // comments
++      if (line=="link") break; // stop reading nodes
++
++      istringstream lineBuffer (line);
++      std::string name, city;
++      double latitude = 0, longitude = 0;
++      uint32_t systemId = 0;
++
++      lineBuffer >> name >> city >> latitude >> longitude >> systemId;
++      if (name.empty ()) 
++        continue;
++
++      Ptr<Node> node;
++
++
++      if (abs(latitude) > 0.001 && abs(latitude) > 0.001) {
++        node = CreateNode (name, m_scale * longitude, -m_scale * latitude, systemId);
++      }
++      else
++        {
++	  Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
++	  var->SetAttribute("Min", DoubleValue(0));
++          var->SetAttribute("Max", DoubleValue(200.0));
++          node = CreateNode (name, var->GetValue(), var->GetValue(), systemId);
++          // node = CreateNode (name, systemId);
++        }
++    }
++
++  map<string, set<string> > processedLinks; // to eliminate duplications
++
++  if (topgen.eof ())
++    {
++      NS_LOG_ERROR ("Topology file " << GetFileName () << " does not have \"link\" section");
++      return m_nodes;
++    }
++
++  // SeekToSection ("link");
++  while (!topgen.eof ())
++    {
++      string line;
++      getline (topgen,line);
++      if (line == "") continue;
++      if (line[0] == '#') continue; // comments
++
++      NS_LOG_DEBUG ("Input: [" << line << "]");
++
++      istringstream lineBuffer (line);
++      std::string from, to, capacity, metric, delay, maxPackets, lossRate;
++
++      lineBuffer >> from >> to >> capacity >> metric >> delay >> maxPackets >> lossRate;
++
++      if (processedLinks[to].size () != 0 &&
++          processedLinks[to].find (from) != processedLinks[to].end ()) {
++          continue; // duplicated link
++      }
++
++      processedLinks[from].insert (to);
++
++      Ptr<Node> fromNode = Names::Find<Node> (m_path, from);
++      NS_ASSERT_MSG (fromNode != 0, from << " node not found");
++      Ptr<Node> toNode   = Names::Find<Node> (m_path, to);
++      NS_ASSERT_MSG (toNode != 0, to << " node not found");
++
++      Link link (fromNode, from, toNode, to);
++
++      link.SetAttribute ("DataRate", capacity);
++      link.SetAttribute ("OSPF", metric);
++
++      if (!delay.empty ())
++          link.SetAttribute ("Delay", delay);
++      if (!maxPackets.empty ())
++        link.SetAttribute ("MaxPackets", maxPackets);
++
++      // Saran Added lossRate
++      if (!lossRate.empty ())
++        link.SetAttribute ("LossRate", lossRate);
++
++      AddLink (link);
++      NS_LOG_DEBUG ("New link " << from << " <==> " << to << " / " << capacity << " with " << metric << " metric (" << delay << ", " << maxPackets << ", " << lossRate << ")");
++    }
++
++  NS_LOG_INFO ("Nlsr topology created with " << m_nodes.GetN () << " nodes and " << LinksSize () << " links");
++  topgen.close ();
++
++  ApplySettings ();
++
++  return m_nodes;
++}
++*/
++
++NodeContainer
++NlsrConfReader::GetNodes () const
++{
++  return m_nodes;
++}
++
++const std::list<TopologyReader::Link>&
++NlsrConfReader::GetLinks () const
++{
++  return m_linksList;
++}
++
++void
++NlsrConfReader::SetBoundingBox (double ulx, double uly, double lrx, double lry)
++{
++  NS_LOG_FUNCTION (this << ulx << uly << lrx << lry);
++
++  m_randX->SetAttribute("Min", DoubleValue(ulx));
++  m_randX->SetAttribute("Max", DoubleValue(lrx));
++
++  m_randY->SetAttribute("Min", DoubleValue(uly));
++  m_randY->SetAttribute("Max", DoubleValue(lry));
++}
++
++void
++NlsrConfReader::SetMobilityModel (const std::string &model)
++{
++  NS_LOG_FUNCTION (this << model);
++  m_mobilityFactory.SetTypeId (model);
++}
++
++void
++NlsrConfReader::AssignIpv4Addresses (Ipv4Address base)
++{
++  Ipv4AddressHelper address (base, Ipv4Mask ("/24"));
++
++  BOOST_FOREACH (const Link &link, m_linksList)
++    {
++      address.Assign (NetDeviceContainer (link.GetFromNetDevice (),
++                                          link.GetToNetDevice ()));
++
++      base = Ipv4Address (base.Get () + 256);
++      address.SetBase (base, Ipv4Mask ("/24"));
++    }
++}
++
++void
++NlsrConfReader::ApplyOspfMetric ()
++{
++  BOOST_FOREACH (const Link &link, m_linksList)
++    {
++      NS_LOG_DEBUG ("OSPF: " << link.GetAttribute ("OSPF"));
++      uint16_t metric = boost::lexical_cast<uint16_t> (link.GetAttribute ("OSPF"));
++
++      {
++        Ptr<Ipv4> ipv4 = link.GetFromNode ()->GetObject<Ipv4> ();
++        if (ipv4 != 0)
++          {
++            int32_t interfaceId = ipv4->GetInterfaceForDevice (link.GetFromNetDevice ());
++            NS_ASSERT (interfaceId >= 0);
++
++            ipv4->SetMetric (interfaceId,metric);
++          }
++
++        Ptr<ndn::L3Protocol> ndn = link.GetFromNode ()->GetObject<ndn::L3Protocol> ();
++        if (ndn != 0)
++          {
++            shared_ptr<ndn::Face> face = ndn->getFaceByNetDevice (link.GetFromNetDevice ());
++            NS_ASSERT (face != 0);
++
++            face->setMetric (metric);
++          }
++      }
++
++      {
++        Ptr<Ipv4> ipv4 = link.GetToNode ()->GetObject<Ipv4> ();
++        if (ipv4 != 0)
++          {
++            int32_t interfaceId = ipv4->GetInterfaceForDevice (link.GetToNetDevice ());
++            NS_ASSERT (interfaceId >= 0);
++
++            ipv4->SetMetric (interfaceId,metric);
++          }
++
++        Ptr<ndn::L3Protocol> ndn = link.GetToNode ()->GetObject<ndn::L3Protocol> ();
++        if (ndn != 0)
++          {
++            shared_ptr<ndn::Face> face = ndn->getFaceByNetDevice (link.GetToNetDevice ());
++            NS_ASSERT (face != 0);
++
++            face->setMetric (metric);
++          }
++      }
++    }
++}
++
++void
++NlsrConfReader::ApplySettings ()
++{
++#ifdef NS3_MPI
++  if (MpiInterface::IsEnabled () &&
++      MpiInterface::GetSize () != m_requiredPartitions)
++    {
++      std::cerr << "MPI interface is enabled, but number of partitions (" << MpiInterface::GetSize ()
++                << ") is not equal to number of partitions in the topology (" << m_requiredPartitions << ")";
++      exit (-1);
++    }
++#endif
++
++  PointToPointHelper p2p;
++
++  BOOST_FOREACH (Link &link, m_linksList)
++    {
++      // cout << "Link: " << Findlink.GetFromNode () << ", " << link.GetToNode () << endl;
++      string tmp;
++
++      ////////////////////////////////////////////////
++      if (link.GetAttributeFailSafe ("MaxPackets", tmp))
++        {
++          NS_LOG_INFO ("MaxPackets = " + link.GetAttribute ("MaxPackets"));
++
++          try
++            {
++              uint32_t maxPackets = boost::lexical_cast<uint32_t> (link.GetAttribute ("MaxPackets"));
++
++              // compatibility mode. Only DropTailQueue is supported
++              p2p.SetQueue ("ns3::DropTailQueue",
++                            "MaxPackets", UintegerValue (maxPackets));
++            }
++          catch (...)
++            {
++              typedef boost::tokenizer<boost::escaped_list_separator<char> > tokenizer;
++              tokenizer tok (link.GetAttribute ("MaxPackets"));
++
++              tokenizer::iterator token = tok.begin ();
++              p2p.SetQueue (*token);
++
++              for (token ++; token != tok.end (); token ++)
++                {
++                  boost::escaped_list_separator<char> separator ('\\', '=', '\"');
++                  tokenizer attributeTok (*token, separator);
++
++                  tokenizer::iterator attributeToken = attributeTok.begin ();
++
++                  string attribute = *attributeToken;
++                  attributeToken++;
++
++                  if (attributeToken == attributeTok.end ())
++                    {
++                      NS_LOG_ERROR ("Queue attribute [" << *token << "] should be in form <Attribute>=<Value>");
++                      continue;
++                    }
++
++                  string value = *attributeToken;
++
++                  p2p.SetQueueAttribute (attribute, StringValue (value));
++                }
++            }
++        }
++      
++      if (link.GetAttributeFailSafe ("DataRate", tmp))
++        {
++          NS_LOG_INFO ("DataRate = " + link.GetAttribute("DataRate"));
++          p2p.SetDeviceAttribute ("DataRate", StringValue (link.GetAttribute ("DataRate")));
++        }
++
++      if (link.GetAttributeFailSafe ("Delay", tmp))
++        {
++          NS_LOG_INFO ("Delay = " + link.GetAttribute("Delay"));
++          p2p.SetChannelAttribute ("Delay", StringValue (link.GetAttribute ("Delay")));
++        }
++
++      NetDeviceContainer nd = p2p.Install(link.GetFromNode (), link.GetToNode ());
++      link.SetNetDevices (nd.Get (0), nd.Get (1));
++
++      ////////////////////////////////////////////////
++      if (link.GetAttributeFailSafe ("LossRate", tmp))
++        {
++          NS_LOG_INFO ("LinkError = " + link.GetAttribute("LossRate"));
++
++          typedef boost::tokenizer<boost::escaped_list_separator<char> > tokenizer;
++          tokenizer tok (link.GetAttribute("LossRate"));
++
++          tokenizer::iterator token = tok.begin ();
++          ObjectFactory factory (*token);
++
++          for (token ++; token != tok.end (); token ++)
++            {
++              boost::escaped_list_separator<char> separator ('\\', '=', '\"');
++              tokenizer attributeTok (*token, separator);
++
++              tokenizer::iterator attributeToken = attributeTok.begin ();
++
++              string attribute = *attributeToken;
++              attributeToken++;
++
++              if (attributeToken == attributeTok.end ())
++                {
++                  NS_LOG_ERROR ("ErrorModel attribute [" << *token << "] should be in form <Attribute>=<Value>");
++                  continue;
++                }
++
++              string value = *attributeToken;
++
++              factory.Set (attribute, StringValue (value));
++            }
++
++          nd.Get (0)->SetAttribute ("ReceiveErrorModel", PointerValue (factory.Create<ErrorModel> ()));
++          nd.Get (1)->SetAttribute ("ReceiveErrorModel", PointerValue (factory.Create<ErrorModel> ()));
++        }
++    }
++}
++
++void
++NlsrConfReader::SaveTopology (const std::string &file)
++{
++  ofstream os (file.c_str (), ios::trunc);
++  os << "# any empty lines and lines starting with '#' symbol is ignored\n"
++     << "\n"
++     << "# The file should contain exactly two sections: router and link, each starting with the corresponding keyword\n"
++     << "\n"
++     << "# router section defines topology nodes and their relative positions (e.g., to use in visualizer)\n"
++     << "router\n"
++     << "\n"
++     << "# each line in this section represents one router and should have the following data\n"
++     << "# node  comment     yPos    xPos\n";
++
++  for (NodeContainer::Iterator node = m_nodes.Begin ();
++       node != m_nodes.End ();
++       node++)
++    {
++      std::string name = Names::FindName (*node);
++      Ptr<MobilityModel> mobility = (*node)->GetObject<MobilityModel> ();
++      Vector position = mobility->GetPosition ();
++
++      os << name << "\t" << "NA" << "\t" << -position.y << "\t" << position.x << "\n";
++    }
++
++  os << "# link section defines point-to-point links between nodes and characteristics of these links\n"
++     << "\n"
++     << "link\n"
++     << "\n"
++     << "# Each line should be in the following format (only first two are required, the rest can be omitted)\n"
++     << "# srcNode   dstNode     bandwidth   metric  delay   queue\n"
++     << "# bandwidth: link bandwidth\n"
++     << "# metric: routing metric\n"
++     << "# delay:  link delay\n"
++     << "# queue:  MaxPackets for transmission queue on the link (both directions)\n"
++     << "# error:  comma-separated list, specifying class for ErrorModel and necessary attributes\n";
++
++  for (std::list<Link>::const_iterator link = m_linksList.begin ();
++       link != m_linksList.end ();
++       link ++)
++    {
++      os << Names::FindName (link->GetFromNode ()) << "\t";
++      os << Names::FindName (link->GetToNode ()) << "\t";
++
++      string tmp;
++      if (link->GetAttributeFailSafe ("DataRate", tmp))
++        os << link->GetAttribute("DataRate") << "\t";
++      else
++        NS_FATAL_ERROR ("DataRate must be specified for the link");
++
++      if (link->GetAttributeFailSafe ("OSPF", tmp))
++        os << link->GetAttribute("OSPF") << "\t";
++      else
++        os << "1\t";
++
++      if (link->GetAttributeFailSafe ("Delay", tmp))
++        {
++          os << link->GetAttribute("Delay") << "\t";
++
++          if (link->GetAttributeFailSafe ("MaxPackets", tmp))
++            {
++              os << link->GetAttribute("MaxPackets") << "\t";
++
++              if (link->GetAttributeFailSafe ("LossRate", tmp))
++                {
++                  os << link->GetAttribute ("LossRate") << "\t";
++                }
++            }
++        }
++      os << "\n";
++    }
++}
++
++template <class Names>
++class name_writer {
++public:
++  name_writer(Names _names) : names(_names) {}
++
++  template <class VertexOrEdge>
++  void operator()(std::ostream& out, const VertexOrEdge& v) const {
++    // out << "[label=\"" << names[v] << "\",style=filled,fillcolor=\"" << colors[v] << "\"]";
++    out << "[shape=\"circle\",width=0.1,label=\"\",style=filled,fillcolor=\"green\"]";
++  }
++private:
++  Names names;
++};
++
++template <class Names>
++inline name_writer<Names>
++make_name_writer(Names n) {
++  return name_writer<Names>(n);
++}
++
++void
++NlsrConfReader::SaveGraphviz (const std::string &file)
++{
++  typedef boost::adjacency_list_traits<boost::setS, boost::setS, boost::undirectedS> Traits;
++
++  typedef boost::property< boost::vertex_name_t, std::string, boost::property
++                           < boost::vertex_index_t, uint32_t > > nodeProperty;
++
++  typedef boost::no_property edgeProperty;
++
++  typedef boost::adjacency_list< boost::setS, boost::setS, boost::undirectedS,
++                                 nodeProperty, edgeProperty > Graph;
++
++  typedef map<string, Traits::vertex_descriptor> node_map_t;
++  node_map_t graphNodes;
++  Graph      graph;
++
++  for (NodeContainer::Iterator node = m_nodes.Begin ();
++       node != m_nodes.End ();
++       node++)
++    {
++       std::pair<node_map_t::iterator, bool>
++         retval = graphNodes.insert (make_pair (Names::FindName (*node),
++                                                add_vertex (nodeProperty (Names::FindName (*node)), graph)));
++       // NS_ASSERT (ok == true);
++
++       put (boost::vertex_index, graph, retval.first->second, (*node)->GetId ());
++    }
++
++  for (std::list<Link>::const_iterator link = m_linksList.begin ();
++       link != m_linksList.end ();
++       link ++)
++    {
++      node_map_t::iterator from = graphNodes.find (Names::FindName (link->GetFromNode ()));
++      node_map_t::iterator to   = graphNodes.find (Names::FindName (link->GetToNode ()));
++
++      // add_edge (node->second, otherNode->second, m_graph);
++      boost::add_edge (from->second, to->second, graph);
++    }
++
++  ofstream of (file.c_str ());
++  boost::property_map<Graph, boost::vertex_name_t>::type names = get (boost::vertex_name, graph);
++  write_graphviz (of, graph, make_name_writer (names));
++}
++
++void
++NlsrConfReader::WriteGraphviz (const std::string &file)
++{
++  ofstream of (file.c_str ());
++
++  of << "graph G {" << endl;
++  of << "rankdir=LR;" << endl;
++  for (NodeContainer::Iterator node = m_nodes.Begin ();
++       node != m_nodes.End ();
++       node++) {
++    of << ns3::Names::FindName((*node)) << "[width=0.1, label=\"" << 
++	  ns3::Names::FindName((*node)) << 
++	  "\", style=filled, fillcolor=\"green\"]" << endl;
++  }
++
++  for (std::list<Link>::const_iterator link = m_linksList.begin ();
++       link != m_linksList.end ();
++       link ++) {
++    of << ns3::Names::FindName((link->GetFromNode())) << "--"
++       << ns3::Names::FindName((link->GetToNode()))  
++       << "[label=\"" << link->GetAttribute("LinkCost") << "\"]" << endl;
++  }
++  of << "}" << endl;
++
++  of.close();
++}
++
++NodeContainer
++NlsrConfReader::BuildTopology()
++{
++  // Create nodes.
++  try {
++    NODE_MAP::iterator nodeIt;
++
++    for (nodeIt = m_node_map.begin(); nodeIt != m_node_map.end(); ++nodeIt) {
++      std::string nodeId = nodeIt->first;
++      NetworkNode& srcNode = nodeIt->second;
++
++      // Create a Node
++      double longitude = srcNode.GetLongitude();
++      double latitude = srcNode.GetLatitude();
++      uint32_t systemId = 0;
++      Ptr<Node> node;
++
++      if (abs(longitude) > 0.001 && abs(latitude) > 0.001) {
++        node = CreateNode (srcNode.GetNodeId(), m_scale * longitude, -m_scale * latitude, systemId);
++      }
++      else
++      {
++        Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
++	var->SetAttribute("Min", DoubleValue(0));
++        var->SetAttribute("Max", DoubleValue(200.0));
++        node = CreateNode (srcNode.GetNodeId(), var->GetValue(), var->GetValue(), systemId);
++      }
++
++      // Map the NDN Node object to its name
++      srcNode.SetNdnNodeId(node->GetId());
++      NS_LOG_INFO ("Node name is: " + srcNode.GetNodeId());
++      //Names::Add(srcNode.GetNodeId(), node);
++    }
++  }
++  catch (const std::exception& ex) {
++    cerr << ex.what() << endl;
++  }
++
++  // Create links.
++  map<string, set<string> > processedLinks; // to eliminate duplications
++  try {
++    NODE_MAP::iterator nodeIt;
++
++    for (nodeIt = m_node_map.begin(); nodeIt != m_node_map.end(); ++nodeIt) {
++      std::string nodeId = nodeIt->first;
++      NetworkNode& srcNode = nodeIt->second;
++
++      // Pass through each of the adjacent nodes
++      ADJACENCY_LIST adjLinks = m_adj_map[nodeId];
++      ADJACENCY_LIST::iterator nodeIt;
++      for (nodeIt = adjLinks.begin(); nodeIt != adjLinks.end(); nodeIt++) {
++
++	NetworkLink dstLink = *nodeIt;
++        if (processedLinks[dstLink.GetNodeId()].size () != 0 &&
++          processedLinks[dstLink.GetNodeId()].find (srcNode.GetNodeId()) != 
++	  processedLinks[dstLink.GetNodeId()].end ()) {
++          continue; // duplicated link
++        }
++        processedLinks[srcNode.GetNodeId()].insert (dstLink.GetNodeId());
++
++        Ptr<Node> fromNode = Names::Find<Node> (m_path, srcNode.GetNodeId());
++        NS_ASSERT_MSG (fromNode != 0, srcNode.GetNodeId() << " node not found");
++        Ptr<Node> toNode   = Names::Find<Node> (m_path, dstLink.GetNodeId());
++        NS_ASSERT_MSG (toNode != 0, dstLink.GetNodeId() << " node not found");
++
++        Link link (fromNode, srcNode.GetNodeId(), toNode, dstLink.GetNodeId());
++        link.SetAttribute ("LinkCost", dstLink.GetLinkCost());
++        //link.SetAttribute ("DataRate", dstLink.GetBandwidth());
++        //link.SetAttribute ("OSPF", dstLink.GetMetric());
++
++        //if (!dstLink.GetDelay().empty())
++        //  link.SetAttribute ("Delay", dstLink.GetDelay());
++        //if (!dstLink.GetQueue().empty ())
++        //  link.SetAttribute ("MaxPackets", dstLink.GetQueue());
++
++        //if (!lossRate.empty())
++        //  link.SetAttribute ("LossRate", lossRate);
++
++	// Add the link.
++        AddLink (link);
++        NS_LOG_DEBUG ("New link " << srcNode.GetNodeId() << " <==> " << dstLink.GetNodeId() << ", Bandwidth: " << dstLink.GetBandwidth() << ", OSPF metric " << dstLink.GetMetric() << ", Delay: " << dstLink.GetDelay() << ", Queue size: " << dstLink.GetQueue());
++      }
++    }
++  }
++  catch (const std::exception& ex) {
++    cerr << ex.what() << endl;
++  }
++
++  NS_LOG_INFO ("Nlsr topology created with " << m_nodes.GetN () << " nodes and " << LinksSize () << " links");
++  ApplySettings ();
++
++  return m_nodes;
++}
++
++void
++NlsrConfReader::SetLinkMTUSize()
++{
++  ns3::PointToPointNetDevice *netDevice = 0;
++  int mtuSize = 8192;
++
++  // MTU can be configured from env variable.
++  char* str = getenv("MTU_SIZE");
++  if (str != NULL) {
++    try {
++      mtuSize = std::stoi(str);
++      NS_LOG_INFO ("MTU size set to: " << mtuSize);
++    } catch (const std::invalid_argument& ia) {
++      NS_LOG_ERROR ("Invalid MTU size configured, using default: 8192");
++    }
++  } else {
++    NS_LOG_INFO ("No MTU specified, using default: 8192");
++  }
++
++  for (NodeContainer::Iterator it = m_nodes.Begin(); it != m_nodes.End(); ++it) {
++    ns3::Ptr<ns3::Node> node = (*it);
++
++    std::string nodeName = ns3::Names::FindName(node);
++    uint32_t numDevices = node->GetNDevices();
++    NS_LOG_INFO ("Node name: " << nodeName << " devices: " << numDevices);
++    for (uint32_t deviceId = 0; deviceId < numDevices; deviceId++) {
++      netDevice = dynamic_cast<ns3::PointToPointNetDevice*>(&(*(node->GetDevice(deviceId))));
++      if (netDevice == NULL)
++	continue;
++
++      netDevice->SetMtu(mtuSize);
++    }
++  }
++}
++
++} // namespace ndn
++} // namespace ns3
+diff --git a/utils/topology/nlsr-conf-reader.hpp b/utils/topology/nlsr-conf-reader.hpp
+new file mode 100755
+index 0000000..7e5ac85
+--- /dev/null
++++ b/utils/topology/nlsr-conf-reader.hpp
+@@ -0,0 +1,326 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++// ndn-nlsr-conf-helper.hpp
++
++#ifndef NLSR_CONF_READER_HPP
++#define NLSR_CONF_READER_HPP
++
++#include <boost/smart_ptr/shared_ptr.hpp>
++#include <boost/property_tree/ptree.hpp>
++#include <boost/cstdint.hpp>
++#include <string>
++#include <iostream>
++#include <map>
++#include <stdint.h>
++#include <sstream>
++
++#include "ns3/topology-reader.h"
++#include "ns3/node-container.h"
++#include "ns3/random-variable-stream.h"
++#include "ns3/object-factory.h"
++#include "ns3/ptr.h"
++#include "ns3/log.h"
++
++#include "adjacency-list.hpp"
++
++namespace ns3 {
++namespace ndn {
++
++class NlsrConfReader : public TopologyReader
++{
++public:
++
++  // Network node. 
++  class NetworkNode 
++  {
++  public:
++    NetworkNode()
++    {
++    }
++
++    NetworkNode(std::string& path, std::string& nodeId, std::string& city,
++	  double& latitude, double& longitude) 
++      : m_configPath(path)
++      , m_nodeId(nodeId)
++      , m_city(city)
++      , m_latitude(latitude)
++      , m_longitude(longitude)
++    {
++    }
++  
++    ~NetworkNode() 
++    {
++    }
++
++    std::string
++    GetConfigPath () const
++    {
++      return m_configPath;
++    }
++  
++    std::string
++    GetNodeId () const
++    {
++      return m_nodeId;
++    }
++  
++    std::string
++    GetCity () const
++    {
++      return m_city;
++    }
++
++    double
++    GetLatitude () const
++    {
++      return m_latitude;
++    }
++
++    double
++    GetLongitude () const
++    {
++      return m_longitude;
++    }
++    
++    void
++    SetNdnNodeId (uint32_t id)
++    {
++      m_ndnNodeId = id;
++    }
++    
++    uint32_t
++    GetNdnNodeId () const
++    {
++      return m_ndnNodeId;
++    }
++
++    void
++    PrintNode()
++    {
++      std::cout << "Node Id: " << m_nodeId << ", " << "City: " << m_city << ", " 
++	        << "Latitude: " << m_latitude << ", " << "Longitude: " << m_longitude << ", "
++		<< "Config path: " << m_configPath << "NDN Node Id: " << m_ndnNodeId << std::endl;
++    }
++    
++  private:
++    std::string m_configPath;
++    std::string m_nodeId;
++    std::string m_city;
++    double m_latitude;
++    double m_longitude;
++    uint32_t m_ndnNodeId;
++  };
++
++  // Network link
++  class NetworkLink 
++  {
++  public:
++    NetworkLink()
++    {
++    }
++
++    NetworkLink(std::string& nodeId, std::string& bandwidth,
++	  std::string& metric, std::string& delay, std::string& queue,
++	  std::string& name, std::string& faceUri, std::string& linkCost) 
++      : m_nodeId(nodeId)
++      , m_bandwidth(bandwidth)
++      , m_metric(metric)
++      , m_delay(delay)
++      , m_queue(queue)
++      , m_name(name)
++      , m_faceUri(faceUri)
++      , m_linkCost(linkCost)
++    {
++    }
++  
++    ~NetworkLink() 
++    {
++    }
++
++    std::string
++    GetNodeId () const
++    {
++      return m_nodeId;
++    }
++  
++    std::string
++    GetBandwidth () const
++    {
++      return m_bandwidth;
++    }
++
++    std::string
++    GetMetric () const
++    {
++      return m_metric;
++    }
++
++    std::string
++    GetDelay () const
++    {
++      return m_delay;
++    }
++    
++    std::string
++    GetQueue () const
++    {
++      return m_queue;
++    }
++  
++    std::string
++    GetName () const
++    {
++      return m_name;
++    }
++  
++    std::string
++    GetFaceUri () const
++    {
++      return m_faceUri;
++    }
++  
++    std::string
++    GetLinkCost () const
++    {
++      return m_linkCost;
++    }
++  
++    void
++    PrintLink()
++    {
++      std::cout << "NodeId: " << m_nodeId << ", " << "Bandwidth: " << m_bandwidth
++                << "Metric: " << m_metric << ", " << "Delay: " << m_delay
++                << "Queue: " << m_queue << ", " << "Name: " << m_name << ", "  
++                << "FaceUri: " << m_faceUri << ", " << "Link cost: " << m_linkCost << std::endl;
++    }
++    
++  private:
++    std::string m_nodeId;
++    std::string m_bandwidth;
++    std::string m_metric;
++    std::string m_delay;
++    std::string m_queue;
++    std::string m_name;
++    std::string m_faceUri;
++    std::string m_linkCost;
++  };
++
++  NlsrConfReader(const std::string &path="", double scale=1.0);
++
++  virtual ~NlsrConfReader();
++
++  bool
++  ProcessConfFile();
++
++  void
++  PrintConfig();
++
++  void
++  InitializeNlsr();
++
++  virtual NodeContainer
++  Read ();
++
++  virtual NodeContainer
++  GetNodes () const;
++    
++  virtual const std::list<Link>&
++  GetLinks () const;
++  
++  virtual void
++  AssignIpv4Addresses (Ipv4Address base);
++
++  virtual void
++  SetBoundingBox (double ulx, double uly, double lrx, double lry);
++
++  virtual void
++  SetMobilityModel (const std::string &model);
++
++  virtual void
++  ApplyOspfMetric ();
++
++  virtual void
++  SaveTopology (const std::string &file);
++
++  virtual void
++  SaveGraphviz (const std::string &file);
++  
++  virtual void
++  WriteGraphviz (const std::string &file);
++  
++protected:
++  Ptr<Node>
++  CreateNode (const std::string name, uint32_t systemId);
++
++  Ptr<Node>
++  CreateNode (const std::string name, double posX, double posY, uint32_t systemId);
++  
++  void ApplySettings ();
++
++  NodeContainer BuildTopology ();
++
++  void SetLinkMTUSize();
++
++protected:
++  std::string m_path;
++  NodeContainer m_nodes;
++
++private:
++  typedef boost::property_tree::ptree ConfigSection;
++  typedef std::map<std::string, NetworkNode> NODE_MAP;
++  typedef std::vector<NetworkLink> ADJACENCY_LIST; 
++  typedef std::map<std::string, ADJACENCY_LIST> ADJACENCY_MAP;
++
++  bool
++  Load(std::istream& input);
++
++  bool
++  ProcessSection(const std::string& sectionName, const ConfigSection& section);
++
++  bool
++  ProcessNlsrConfig(const ConfigSection& section);
++
++  bool
++  ProcessNodeId(const ConfigSection& section);
++
++  bool
++  ProcessNeighborNodes(const ConfigSection& section);
++
++private:
++  std::string m_confFileName;
++  std::string m_srcNodeId;
++  NODE_MAP m_node_map;
++  ADJACENCY_MAP m_adj_map;
++
++  NlsrConfReader (const NlsrConfReader&);
++  NlsrConfReader& operator= (const NlsrConfReader&);
++
++  Ptr<UniformRandomVariable> m_randX;
++  Ptr<UniformRandomVariable> m_randY;
++
++  ObjectFactory m_mobilityFactory;
++  double m_scale;
++  uint32_t m_requiredPartitions;
++};
++
++} // namespace ndn
++} // namespace ns3
++
++#endif // NLSR_CONF_READER_HPP
+diff --git a/utils/tracers/ndn-nlsr-tracer.cpp b/utils/tracers/ndn-nlsr-tracer.cpp
+new file mode 100644
+index 0000000..79e6ca7
+--- /dev/null
++++ b/utils/tracers/ndn-nlsr-tracer.cpp
+@@ -0,0 +1,272 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++// ndn-nlsr-tracer.cpp
++
++#include <fstream>
++
++#include "ns3/log.h"
++#include "ndn-nlsr-tracer.hpp"
++
++#include <ns3/ptr.h>
++#include <ns3/node.h>
++#include <ns3/node-list.h>
++#include <ns3/names.h>
++
++#include "ns3/simulator.h"
++
++NS_LOG_COMPONENT_DEFINE("NlsrTracer");
++
++std::string helloTraceFile = "-node-nlsr-hello-trace-";
++std::string syncTraceFile = "-node-nlsr-sync-trace-";
++std::string nlsaTraceFile = "-node-nlsr-nlsa-trace-";
++std::string llsaTraceFile = "-node-nlsr-llsa-trace-";
++std::string fibTraceFile = "-node-nlsr-fib-trace-";
++
++namespace ns3 {
++
++namespace ndn {
++
++NlsrTracer* NlsrTracer::inst = 0;
++int NlsrTracer::m_HelloCount = 0;
++int NlsrTracer::m_NameLsaCount = 0;
++int NlsrTracer::m_LinkLsaCount = 0;
++int NlsrTracer::m_NsyncCount = 0;
++int NlsrTracer::m_FibCount = 0;
++
++int NlsrTracer::m_HelloFileCount = 0;
++int NlsrTracer::m_NameLsaFileCount = 0;
++int NlsrTracer::m_LinkLsaFileCount = 0;
++int NlsrTracer::m_NsyncFileCount = 0;
++int NlsrTracer::m_FibFileCount = 0;
++
++bool NlsrTracer::m_EnableTracer = true;
++
++NlsrTracer& NlsrTracer::Instance() {
++  if (!inst) 
++    inst = new NlsrTracer();
++  return *inst;
++}
++
++NlsrTracer::NlsrTracer() {
++  m_LogBlockSize = 4000;
++
++  char* str = getenv("ENABLE_TRACER");
++  if (str != NULL) {
++    if (strcmp(str, "TRUE") == 0) {
++      m_EnableTracer = true;
++      NS_LOG_INFO ("Nlsr tracer is enabled");
++    } else if(strcmp(str, "FALSE") == 0) {
++      m_EnableTracer = false;
++      NS_LOG_INFO ("Nlsr tracer is disabled");
++    }
++  } else {
++    m_EnableTracer = true;
++    NS_LOG_INFO ("Nlsr tracer is enabled");
++  }
++}
++
++NlsrTracer::~NlsrTracer() {
++  // Close of streams
++  of_hello.close();
++  of_nlsa.close();
++  of_llsa.close();
++  of_nsync.close();
++  of_fib.close();
++}
++
++// LOG_FILE_SIZE can be configured from env variable.
++void
++NlsrTracer::SetLogRollOverSize() {
++  char* str = getenv("LOG_ROLL_OVER");
++  if (str != NULL) {
++    try {
++      m_LogBlockSize = std::stoi(str);
++      NS_LOG_INFO ("Log roll-over size set to: " << m_LogBlockSize);
++    } catch (const std::invalid_argument& ia) {
++      NS_LOG_ERROR ("Invalid LOG_ROLL_OVER size configured, using default: " << m_LogBlockSize);
++    }
++  } else {
++    NS_LOG_INFO ("No log roll over specified, using default: 4000");
++  }
++}
++
++bool
++NlsrTracer::IsEnabled() {
++  return m_EnableTracer;
++}
++
++void 
++NlsrTracer::InitializeTracer(std::string prefix) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  m_prefix = prefix;
++  boost::filesystem::path full_path(boost::filesystem::current_path());
++  m_helloTracer = full_path.string() + "/" + m_prefix + helloTraceFile + std::to_string(m_HelloFileCount++) + ".txt";
++  of_hello.open(m_helloTracer.c_str());
++
++  m_nameLsaTracer = full_path.string() + "/" + m_prefix + nlsaTraceFile + std::to_string(m_NameLsaFileCount++) + ".txt";
++  of_nlsa.open(m_nameLsaTracer.c_str()); 
++
++  m_linkLsaTracer = full_path.string() + "/" + m_prefix + llsaTraceFile + std::to_string(m_LinkLsaFileCount++) + ".txt";
++  of_llsa.open(m_linkLsaTracer.c_str()); 
++
++  m_nsyncTracer = full_path.string() + "/" + m_prefix + syncTraceFile + std::to_string(m_NsyncFileCount++) + ".txt";
++  of_nsync.open(m_nsyncTracer.c_str()); 
++
++  m_fibTracer = full_path.string() + "/" + m_prefix + fibTraceFile + std::to_string(m_FibFileCount++) + ".txt";
++  of_fib.open(m_fibTracer.c_str()); 
++
++  WriteHeaders();
++  SetLogRollOverSize();
++}
++
++void
++NlsrTracer::WriteHeaders() {
++  of_llsa << "Time" << "\tNode" << "\tFaceId" << "\tFaceDescr" << "\tType" << "\tPackets" << "\tKBytes" << "\tPacketRaw" << endl;
++  of_nlsa << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  of_hello << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  of_nsync << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  of_fib << "Time" << "\tNode" << "\tName" << "\tType" << "\tAttempt" << "\t-" << "\t-" << "\t-" << endl;
++}
++
++void
++NlsrTracer::HelloTrace(std::string arg1, std::string arg2, std::string arg3, std::string arg4, std::string arg5, std::string arg6) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  std::string nodeName = Names::FindName(node);
++
++  of_hello << Simulator::Now().ToDouble(Time::S) << "\t" << nodeName << "\t" << arg1 << "\t" << arg2 << "\t" << arg3 << "\t" << arg4 << "\t" << arg5 << "\t" << arg6 << endl; 
++  if (++m_HelloCount == m_LogBlockSize) {
++    // Close and create a new log file
++    of_hello.flush();
++    m_HelloCount = 0;
++    of_hello.close();
++
++    boost::filesystem::path full_path(boost::filesystem::current_path());
++    m_helloTracer = full_path.string() + "/" + m_prefix + helloTraceFile + std::to_string(m_HelloFileCount++) + ".txt";
++    of_hello.open(m_helloTracer.c_str()); 
++    of_hello << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  }
++}
++
++void 
++NlsrTracer::NameLsaTrace(std::string arg1, std::string arg2, std::string arg3, std::string arg4, std::string arg5, std::string arg6) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  std::string nodeName = Names::FindName(node);
++
++  of_nlsa << Simulator::Now().ToDouble(Time::S) << "\t" << nodeName << "\t" << arg1 << "\t" << arg2 << "\t" << arg3 << "\t" << arg4 << "\t" << arg5 << "\t" << arg6 << endl; 
++  if (++m_NameLsaCount == m_LogBlockSize) {
++    // Close and create a new log file
++    of_nlsa.flush();
++    m_NameLsaCount = 0;
++    of_nlsa.close();
++
++    boost::filesystem::path full_path(boost::filesystem::current_path());
++    m_nameLsaTracer = full_path.string() + "/" + m_prefix + nlsaTraceFile + std::to_string(m_NameLsaFileCount++) + ".txt";
++    of_nlsa.open(m_nameLsaTracer.c_str()); 
++    of_nlsa << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  }
++}
++
++void 
++NlsrTracer::LinkLsaTrace(std::string arg1, std::string arg2, std::string arg3, std::string arg4, std::string arg5, std::string arg6) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  std::string nodeName = Names::FindName(node);
++
++  of_llsa << Simulator::Now().ToDouble(Time::S) << "\t" << nodeName << "\t" << arg1 << "\t" << arg2 << "\t" << arg3 << "\t" << arg4 << "\t" << arg5 << "\t" << arg6 << endl; 
++  if (++m_LinkLsaCount == m_LogBlockSize) {
++    of_llsa.flush();
++    m_LinkLsaCount = 0;
++    of_llsa.close();
++
++    boost::filesystem::path full_path(boost::filesystem::current_path());
++    m_linkLsaTracer = full_path.string() + "/" + m_prefix + llsaTraceFile + std::to_string(m_LinkLsaFileCount++) + ".txt";
++    of_llsa.open(m_linkLsaTracer.c_str()); 
++    of_llsa << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  }
++}
++
++void 
++NlsrTracer::NsyncTrace(std::string arg1, std::string arg2, std::string arg3, std::string arg4, std::string arg5, std::string arg6) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  std::string nodeName = Names::FindName(node);
++
++  of_nsync << Simulator::Now().ToDouble(Time::S) << "\t" << nodeName << "\t" << arg1 << "\t" << arg2 << "\t" << arg3 << "\t" << arg4 << "\t" << arg5 << "\t" << arg6 << endl; 
++  if (++m_NsyncCount == m_LogBlockSize) {
++    // Close and create a new log file
++    of_nsync.flush();
++    m_NsyncCount = 0;
++    of_nsync.close();
++
++    boost::filesystem::path full_path(boost::filesystem::current_path());
++    m_nsyncTracer = full_path.string() + "/" + m_prefix + syncTraceFile + std::to_string(m_NsyncFileCount++) + ".txt";
++    of_nsync.open(m_nsyncTracer.c_str()); 
++    of_nsync << "Time" << "\tNode" << "\tName" << "\tType" << "\tPackets" << "\tKBytes" << "\t-" << "\t-" << endl;
++  }
++}
++
++void 
++NlsrTracer::FibTrace(std::string arg1, std::string arg2, std::string arg3, std::string arg4, std::string arg5, std::string arg6) {
++
++  if (!m_EnableTracer) {
++    return;
++  }
++
++  ns3::Ptr<ns3::Node> node = ns3::NodeList::GetNode(ns3::Simulator::GetContext());
++  std::string nodeName = Names::FindName(node);
++
++  of_fib << Simulator::Now().ToDouble(Time::S) << "\t" << nodeName << "\t" << arg1 << "\t" << arg2 << "\t" << arg3 << "\t" << arg4 << "\t" << arg5 << "\t" << arg6 << endl; 
++  if (++m_FibCount == m_LogBlockSize) {
++    // Close and create a new log file
++    of_fib.flush();
++    m_FibCount = 0;
++    of_fib.close();
++
++    boost::filesystem::path full_path(boost::filesystem::current_path());
++    m_fibTracer = full_path.string() + "/" + m_prefix + fibTraceFile + std::to_string(m_FibFileCount++) + ".txt";
++    of_fib.open(m_fibTracer.c_str()); 
++    of_fib << "Time" << "\tNode" << "\tName" << "\tType" << "\tAttempt" << "\t-" << "\t-" << "\t-" << endl;
++  }
++}
++
++} // namespace ndn
++} // namespace ns3
+diff --git a/utils/tracers/ndn-nlsr-tracer.hpp b/utils/tracers/ndn-nlsr-tracer.hpp
+new file mode 100644
+index 0000000..0414dd3
+--- /dev/null
++++ b/utils/tracers/ndn-nlsr-tracer.hpp
+@@ -0,0 +1,106 @@
++/*{* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/**
++ * Copyright (c) 2011-2015  Regents of the University of California.
++ *
++ * This file is part of ndnSIM. See AUTHORS for complete list of ndnSIM authors and
++ * contributors.
++ *
++ * ndnSIM is free software: you can redistribute it and/or modify it under the terms
++ * of the GNU General Public License as published by the Free Software Foundation,
++ * either version 3 of the License, or (at your option) any later version.
++ *
++ * ndnSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
++ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
++ * PURPOSE.  See the GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * ndnSIM, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
++ **/
++
++// ndn-nlsr-tracer.hpp
++
++#ifndef _NDN_NLSR_TRACER_H
++#define _NDN_NLSR_TRACER_H
++
++#include <iostream>
++#include <fstream>
++#include <string>
++
++#include <boost/filesystem.hpp>
++
++namespace ns3 {
++
++using namespace std;
++
++namespace ndn {
++
++class NlsrTracer {
++
++public:
++  static NlsrTracer& Instance();
++
++  virtual ~NlsrTracer();
++
++  void InitializeTracer(std::string prefix);
++
++  bool IsEnabled();
++
++  void 
++  HelloTrace(std::string agr1 = "-", std::string agr2 = "-", std::string agr3 = "-", std::string agr4 = "-", std::string agr5 = "-", std::string agr6 = "-");
++
++  void 
++  NameLsaTrace(std::string agr1 = "-", std::string agr2 = "-", std::string agr3 = "-", std::string agr4 = "-", std::string agr5 = "-", std::string agr6 = "-");
++
++  void 
++  LinkLsaTrace(std::string agr1 = "-", std::string agr2 = "-", std::string agr3 = "-", std::string agr4 = "-", std::string agr5 = "-", std::string agr6 = "-");
++
++  void 
++  NsyncTrace(std::string agr1 = "-", std::string agr2 = "-", std::string agr3 = "-", std::string agr4 = "-", std::string agr5 = "-", std::string agr6 = "-");
++
++  void 
++  FibTrace(std::string agr1 = "-", std::string agr2 = "-", std::string agr3 = "-", std::string agr4 = "-", std::string agr5 = "-", std::string agr6 = "-");
++
++private:
++
++  NlsrTracer();
++  NlsrTracer(const NlsrTracer&);
++  NlsrTracer& operator=(const NlsrTracer&);
++
++  void WriteHeaders();
++  void SetLogRollOverSize();
++
++  std::string m_prefix;
++  std::string m_currPath;
++  std::string m_helloTracer;
++  std::string m_nameLsaTracer;
++  std::string m_linkLsaTracer;
++  std::string m_nsyncTracer;
++  std::string m_fibTracer;
++
++  std::ofstream of_hello;
++  std::ofstream of_nlsa;
++  std::ofstream of_llsa;
++  std::ofstream of_nsync;
++  std::ofstream of_fib;
++
++  static NlsrTracer* inst;
++  static int m_HelloCount;
++  static int m_NameLsaCount;
++  static int m_LinkLsaCount;
++  static int m_NsyncCount;
++  static int m_FibCount;
++
++  static int m_HelloFileCount;
++  static int m_NameLsaFileCount;
++  static int m_LinkLsaFileCount;
++  static int m_NsyncFileCount;
++  static int m_FibFileCount;
++
++  static bool m_EnableTracer;
++  int m_LogBlockSize;
++};
++
++} // namespace ndn
++} // namespace ns3
++
++#endif // _NDN_NLSR_TRACER_H
+diff --git a/wscript b/wscript
+old mode 100644
+new mode 100755
+index 71f2c9a..0f3baf8
+--- a/wscript
++++ b/wscript
+@@ -16,9 +16,28 @@ def options(opt):
+     opt.load(['version'], tooldir=['%s/.waf-tools' % opt.path.abspath()])
+     opt.load(['doxygen', 'sphinx_build', 'type_traits', 'compiler-features', 'cryptopp', 'sqlite3'],
+              tooldir=['%s/ndn-cxx/.waf-tools' % opt.path.abspath()])
++    opt.load(['default-compiler-flags', 'coverage',
++              'boost', 'protoc', 'openssl',
++              'doxygen', 'sphinx_build'], tooldir=['%s/NLSR/.waf-tools' % opt.path.abspath()])
+ 
+ def configure(conf):
+     conf.load(['doxygen', 'sphinx_build', 'type_traits', 'compiler-features', 'version', 'cryptopp', 'sqlite3'])
++    conf.load(['compiler_cxx', 'gnu_dirs', 'boost', 'openssl', 'default-compiler-flags', 'doxygen', 'sphinx_build'])
++
++    if 'PKG_CONFIG_PATH' not in os.environ:
++        os.environ['PKG_CONFIG_PATH'] = Utils.subst_vars('${LIBDIR}/pkgconfig', conf.env)
++
++    conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
++                   uselib_store='NDN_CXX', mandatory=True)
++
++    conf.check_cfg(package='liblog4cxx', args=['--cflags', '--libs'],
++                   uselib_store='LOG4CXX', mandatory=True)
++
++    conf.check_openssl(mandatory=True)
++
++    conf.load('protoc')
++
++    conf.load('coverage')
+ 
+     conf.env['ENABLE_NDNSIM']=False
+ 
+@@ -76,6 +95,7 @@ def configure(conf):
+ 
+     conf.write_config_header('../../ns3/ndnSIM/ndn-cxx/ndn-cxx-config.hpp', define_prefix='NDN_CXX_', remove=False)
+     conf.write_config_header('../../ns3/ndnSIM/NFD/config.hpp', remove=False)
++    conf.write_config_header('../../ns3/ndnSIM/NLSR/config.hpp', remove=False)
+ 
+ def build(bld):
+     (base, build, split) = bld.getVersion('NFD')
+@@ -88,6 +108,16 @@ def build(bld):
+         VERSION=int(split[0]) * 1000000 + int(split[1]) * 1000 + int(split[2]),
+         VERSION_MAJOR=split[0], VERSION_MINOR=split[1], VERSION_PATCH=split[2])
+ 
++    (base, build, split) = bld.getVersion('NLSR')
++    bld(features="subst",
++        name="version-NLSR",
++        source='NLSR/src/version.hpp.in', target='../../ns3/ndnSIM/NLSR/version.hpp',
++        install_path=None,
++        VERSION_STRING=base,
++        VERSION_BUILD="%s-ndnSIM" % build,
++        VERSION=int(split[0]) * 1000000 + int(split[1]) * 1000 + int(split[2]),
++        VERSION_MAJOR=split[0], VERSION_MINOR=split[1], VERSION_PATCH=split[2])
++
+     (base, build, split) = bld.getVersion('ndn-cxx')
+     bld(features="subst",
+         name="version-ndn-cxx",
+@@ -121,12 +151,19 @@ def build(bld):
+                                      'NFD/daemon/face/websocket*',
+                                      'NFD/rib/nrd.cpp'])
+ 
++    nsyncSrc = bld.path.ant_glob(['%s/**/*.cc' % dir for dir in ['NLSR']])
++
++    nlsrSrc = bld.path.ant_glob(['%s/**/*.cpp' % dir for dir in ['NLSR/src']],
++                               excl=['NLSR/src/main.cpp',
++                                     'NLSR/src/nlsr-runner.cpp',
++                                     'NLSR/src/logger.cpp'])
++
+     module = bld.create_ns3_module('ndnSIM', deps)
+     module.module = 'ndnSIM'
+     module.features += ' ns3fullmoduleheaders ndncxxheaders'
+-    module.use += ['version-ndn-cxx', 'version-NFD', 'BOOST', 'CRYPTOPP', 'SQLITE3', 'RT', 'PTHREAD']
+-    module.includes = ['../..', '../../ns3/ndnSIM/NFD', './NFD/core', './NFD/daemon', './NFD/rib', '../../ns3/ndnSIM', '../../ns3/ndnSIM/ndn-cxx']
+-    module.export_includes = ['../../ns3/ndnSIM/NFD', './NFD/core', './NFD/daemon', './NFD/rib', '../../ns3/ndnSIM']
++    module.use += ['version-ndn-cxx', 'version-NFD', 'version-NLSR', 'OPENSSL', 'BOOST', 'CRYPTOPP', 'SQLITE3', 'RT', 'PTHREAD', 'PROTOBUF']
++    module.includes = ['../..', '../../ns3/ndnSIM/NFD', './NFD/core', './NFD/daemon', './NFD/rib', '../../ns3/ndnSIM', '../../ns3/ndnSIM/ndn-cxx', '../../ns3/ndnSIM/NLSR', './NLSR/src', './NLSR/nsync', './NLSR']
++    module.export_includes = ['../../ns3/ndnSIM/NFD', './NFD/core', './NFD/daemon', './NFD/rib', '../../ns3/ndnSIM', '../../ns3/ndnSIM/NLSR', './NLSR/src', './NLSR/nsync', './NLSR']
+ 
+     headers = bld(features='ns3header')
+     headers.module = 'ndnSIM'
+@@ -138,11 +175,12 @@ def build(bld):
+ 
+     module_dirs = ['apps', 'helper', 'model', 'utils']
+     module.source = bld.path.ant_glob(['%s/**/*.cpp' % dir for dir in module_dirs],
+-                                      excl=['model/ip-faces/*']) + ndnCxxSrc + nfdSrc
++                                      excl=['model/ip-faces/*']) + ndnCxxSrc + nfdSrc + nsyncSrc + nlsrSrc
+ 
+-    module_dirs = ['NFD/core', 'NFD/daemon', 'NFD/rib', 'apps', 'helper', 'model', 'utils']
++    module_dirs = ['NFD/core', 'NFD/daemon', 'NFD/rib', 'apps', 'helper', 'model', 'utils', 'NLSR', 'NLSR/src']
+     module.full_headers = bld.path.ant_glob(['%s/**/*.hpp' % dir for dir in module_dirs])
+     module.full_headers += bld.path.ant_glob('NFD/common.hpp')
++    module.full_headers += bld.path.ant_glob(['%s/**/*.h' % dir for dir in ['NLSR']])
+ 
+     module.ndncxx_headers = bld.path.ant_glob(['ndn-cxx/src/**/*.hpp'],
+                                               excl=['src/**/*-osx.hpp', 'src/detail/**/*'])

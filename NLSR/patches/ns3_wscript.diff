@@ -1,0 +1,37 @@
+diff --git a/wscript b/wscript
+index 455ce4d..7e8cca7 100644
+--- a/wscript
++++ b/wscript
+@@ -208,6 +208,14 @@ def options(opt):
+                          'but do not wait for ns-3 to finish the full build.'),
+                    action="store_true", default=False,
+                    dest='doxygen_no_build')
++    opt.add_option('--enable-nlsr',
++                   help=('Compile NS-3 with NLSR simulation support'),
++                   dest='enable_nlsr', action='store_true',
++                   default=False)
++    opt.add_option('--enable-gprof',
++                   help=('Enable code profiling.'),
++                   action="store_true", default=False,
++                   dest='enable_gprof')
+ 
+     # options provided in subdirectories
+     opt.recurse('src')
+@@ -311,6 +319,17 @@ def configure(conf):
+         env.append_value('LINKFLAGS', '-lgcov')
+         env.append_value('LINKFLAGS', '-coverage')
+ 
++    if Options.options.enable_gprof:
++        env['GPROF_ENABLED'] = True
++        env.append_value('CCFLAGS', '-pg')
++        env.append_value('CFLAGS', '-pg')
++        env.append_value('CXXFLAGS', '-pg')
++        env.append_value('LINKFLAGS', '-pg')
++
++    if Options.options.enable_nlsr:
++        env['NLSR_ENABLED'] = True
++        env.append_value('DEFINES', 'NS3_NLSR_SIM')
++
+     if Options.options.build_profile == 'debug':
+         env.append_value('DEFINES', 'NS3_BUILD_PROFILE_DEBUG')
+         env.append_value('DEFINES', 'NS3_ASSERT_ENABLE')
