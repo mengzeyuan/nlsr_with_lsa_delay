@@ -99,13 +99,13 @@ public:
   const ndn::Name
   getRouterName() const   // routerName = routerName
   {
-    int32_t lsaPosition = util::getNameComponentPosition(m_name, LSA_COMPONENT);
+    int32_t sitePosition = util::getNameComponentPosition(m_name, SITE_COMPONENT);
 
-    if (lsaPosition < 0) {
+    if (sitePosition < 0) {
       throw Error("Cannot parse update name because expected components are missing");
     }
 
-    ndn::Name routerName = m_name.getSubName(lsaPosition + 1);
+    ndn::Name routerName = m_name.getSubName(sitePosition + 1);
 
     return routerName;
   }
@@ -140,10 +140,12 @@ private:
 
   static const std::string NLSR_COMPONENT;
   static const std::string LSA_COMPONENT;
+  static const std::string SITE_COMPONENT;
 };
 
 const std::string SyncUpdate::NLSR_COMPONENT = "NLSR";
 const std::string SyncUpdate::LSA_COMPONENT = "LSA";
+const std::string SyncUpdate::SITE_COMPONENT = "e";
 
 template<class T>
 class NullDeleter
@@ -219,12 +221,6 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
   ndn::Name originRouter;
   ndn::Name routerName;
 
-  //ymz
-  MGraph g(6, 10);
-  g.Dijkstra(0);
-  //print
-  g.printResult();
-
   try {
     originRouter = update.getOriginRouter();
     routerName = update.getRouterName();
@@ -234,12 +230,19 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
     return;
   }
 
-  //cout << routerName.toUri() << endl;
+  // cout << originRouter.toUri() << endl;
 
   // A router should not try to fetch its own LSA
-  if (originRouter != m_confParam.getRouterPrefix()) {
+  ndn::Name thisRouter = m_confParam.getRouterName();
+  cout << thisRouter.toUri() << endl;
+  if (originRouter != thisRouter) {
 
-    //todo:可以把routerName和其中心度的对应关系保存在unordered_map中，根据对应关系找到对应的中心度
+    //ymz
+    //MGraph g(6, 10);
+    //g.Dijkstra(routerName.toUri()[5]-'0');
+    //print
+    //g.printResult();
+    //double centrality = g.calculateCentrality();
 
     update.getSequencingManager().writeLog();
 
@@ -352,13 +355,13 @@ SyncLogicHandler::publishSyncUpdate(const ndn::Name& updatePrefix, uint64_t seqN
   m_syncSocket->publishData(updateName.toUri(), 0, data.c_str(), data.size(), 1000, seqNo);
 }
 
-void 
-SyncLogicHandler::delay_second(int sec){
-  int start_time = ns3::Simulator::Now().GetSeconds();
-  int cur_time;
-  do{
-    cur_time = ns3::Simulator::Now().GetSeconds();
-  }while(cur_time - start_time < sec);
-}
+// void 
+// SyncLogicHandler::delay_second(int sec){
+//   int start_time = ns3::Simulator::Now().GetSeconds();
+//   int cur_time;
+//   do{
+//     cur_time = ns3::Simulator::Now().GetSeconds();
+//   }while(cur_time - start_time < sec);
+// }
 
 }//namespace nlsr

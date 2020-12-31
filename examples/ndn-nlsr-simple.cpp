@@ -113,7 +113,7 @@ main (int argc, char *argv[])
   // Producer will reply to all requests starting with /prefix
   producerHelper.SetPrefix("/prefix");
   producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
-  producerHelper.Install(nodes.Get(1)); // third node
+  producerHelper.Install(nodes.Get(6)); // third node
 
   //ymz
   // Calculate and install FIBs

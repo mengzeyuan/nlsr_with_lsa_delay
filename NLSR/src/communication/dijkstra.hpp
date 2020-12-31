@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include "stdio.h"
 
 using namespace std;
@@ -24,6 +25,7 @@ public:
     void Dispath(int dist[],int path[],int s[],int v);
     void Dijkstra(int v);
     void printResult();
+    double calculateCentrality(int node);
 private:
     int n,e;//n：节点总数，e：边总数
     vector<vector<int>> edges;

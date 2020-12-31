@@ -13,6 +13,17 @@ MGraph::printResult()
     }
 }
 
+double MGraph::calculateCentrality(int node){
+    double sum=0;
+    for(int i=0;i<result.size();i++){
+        vector<int>::iterator it = find(result[i].begin(), result[i].end(), node);
+        if (it != result[i].end()){
+            sum++;
+        }
+    }
+    return sum/(n-1);
+}
+
 void 
 MGraph::Dispath(int dist[],int path[],int s[],int v)
 {

@@ -101,6 +101,16 @@ class ConfParameter
 {
 
 public:
+  class Error : public std::runtime_error
+  {
+  public:
+    explicit
+    Error(const std::string& what)
+      : std::runtime_error(what)
+    {
+    }
+  };
+
   ConfParameter()
     : m_lsaRefreshTime(LSA_REFRESH_TIME_DEFAULT)
     , m_adjLsaBuildInterval(ADJ_LSA_BUILD_INTERVAL_DEFAULT)
@@ -177,6 +187,21 @@ public:
     return m_routerPrefix;
   }
 
+  //ymz
+  // const ndn::Name&
+  // getRouterName() const
+  // {
+  //   ndn::Name routerName = m_routerPrefix;
+  //   int32_t sitePosition = util::getNameComponentPosition(routerName, "e");
+
+  //   if (sitePosition < 0) {
+  //     throw Error("Cannot parse update name because expected components are missing");
+  //   }
+
+  //   ndn::Name routerName = routerName.getSubName(sitePosition + 1);
+
+  //   return routerName;
+  // }
 
   const ndn::Name&
   getChronosyncPrefix() const

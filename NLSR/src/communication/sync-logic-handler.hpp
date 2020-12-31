@@ -87,8 +87,8 @@ private:
   void
   publishSyncUpdate(const ndn::Name& updatePrefix, uint64_t seqNo);
 
-  void
-  delay_second(int sec);
+  // void
+  // delay_second(int sec);
 
 private:
   ndn::shared_ptr<ndn::ValidatorNull> m_validator;
