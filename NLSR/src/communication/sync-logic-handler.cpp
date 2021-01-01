@@ -230,26 +230,24 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
     return;
   }
 
-  // cout << originRouter.toUri() << endl;
-
   // A router should not try to fetch its own LSA
-  ndn::Name thisRouter = m_confParam.getRouterName();
-  cout << thisRouter.toUri() << endl;
-  if (originRouter != thisRouter) {
+  if (originRouter != m_confParam.getRouterPrefix()) {
 
+    ndn::Name thisRouter = m_confParam.getRouterName();
+    cout << thisRouter.toUri() << endl;
     //ymz
     //MGraph g(6, 10);
-    //g.Dijkstra(routerName.toUri()[5]-'0');
+    //g.Dijkstra(std::stoi(thisRouter.toUri()[5]));  //根据本节点编号计算路由
     //print
     //g.printResult();
-    //double centrality = g.calculateCentrality();
+    //double centrality = g.calculateCentrality(std::stoi(routerName.toUri()[5]));  //根据目标节点编号计算中心度
 
     update.getSequencingManager().writeLog();
 
     if (isLsaNew(originRouter, NameLsa::TYPE_STRING, update.getNameLsaSeqNo())) {
         _LOG_DEBUG("Received sync update with higher Name LSA sequence number than entry in LSDB");
 
-        _LOG_DEBUG_YMZ("尝试加5s定时器12.23");
+        _LOG_DEBUG_YMZ("尝试加定时器：name lsa");
         ns3::Simulator::Schedule(ns3::Seconds (5.0), &SyncLogicHandler::expressInterestForLsa, this, update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo());
         //成了成了！
         

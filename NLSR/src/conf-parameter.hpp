@@ -187,22 +187,6 @@ public:
     return m_routerPrefix;
   }
 
-  //ymz
-  // const ndn::Name&
-  // getRouterName() const
-  // {
-  //   ndn::Name routerName = m_routerPrefix;
-  //   int32_t sitePosition = util::getNameComponentPosition(routerName, "e");
-
-  //   if (sitePosition < 0) {
-  //     throw Error("Cannot parse update name because expected components are missing");
-  //   }
-
-  //   ndn::Name routerName = routerName.getSubName(sitePosition + 1);
-
-  //   return routerName;
-  // }
-
   const ndn::Name&
   getChronosyncPrefix() const
   {
