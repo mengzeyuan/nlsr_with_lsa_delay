@@ -26,7 +26,6 @@
 #include "nlsr.hpp"
 #include "adjacent.hpp"
 #include "lsa.hpp"
-#include "lsdb.hpp"
 #include "map.hpp"
 #ifdef NS3_NLSR_SIM
 #include "nlsr-logger.hpp"
@@ -106,6 +105,21 @@ void
 Map::createFromAdjLsdb(Nlsr& pnlsr)
 {
   std::list<AdjLsa> adjLsdb = pnlsr.getLsdb().getAdjLsdb();
+  for (std::list<AdjLsa>::iterator it = adjLsdb.begin();
+       it != adjLsdb.end() ; it++) {
+    addEntry((*it).getOrigRouter());
+    std::list<Adjacent> adl = (*it).getAdl().getAdjList();
+    for (std::list<Adjacent>::iterator itAdl = adl.begin();
+         itAdl != adl.end() ; itAdl++) {
+      addEntry((*itAdl).getName());
+    }
+  }
+}
+
+void
+Map::createFromLsdb(Lsdb& m_lsdb)
+{
+  std::list<AdjLsa> adjLsdb = m_lsdb.getAdjLsdb();
   for (std::list<AdjLsa>::iterator it = adjLsdb.begin();
        it != adjLsdb.end() ; it++) {
     addEntry((*it).getOrigRouter());

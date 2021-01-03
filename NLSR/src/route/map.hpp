@@ -28,6 +28,7 @@
 #include <boost/cstdint.hpp>
 
 #include <ndn-cxx/common.hpp>
+#include "lsdb.hpp"
 
 #include "map-entry.hpp"
 
@@ -49,6 +50,9 @@ public:
 
   void
   createFromAdjLsdb(Nlsr& pnlsr);
+
+  void
+  createFromLsdb(Lsdb& m_lsdb);
 
   void
   createFromCoordinateLsdb(Nlsr& nlsr);

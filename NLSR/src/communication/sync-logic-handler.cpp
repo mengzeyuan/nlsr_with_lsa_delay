@@ -218,6 +218,67 @@ SyncLogicHandler::onNsyncRemoval(const string& prefix)
 }
 
 void
+SyncLogicHandler::createTopology(){
+  Map map;
+  map.createFromLsdb(m_lsdb);
+  map.writeLog();
+
+  size_t nRouters = map.getMapSize();  //nRouters保存路由节点的数量
+
+  MGraph g(nRouters);
+
+  std::list<AdjLsa> adjLsdb = m_lsdb.getAdjLsdb();
+  for (std::list<AdjLsa>::iterator it = adjLsdb.begin(); it != adjLsdb.end() ; it++) {
+
+    int32_t row = map.getMappingNoByRouterName((*it).getOrigRouter());
+
+    std::list<Adjacent> adl = (*it).getAdl().getAdjList();
+    for (std::list<Adjacent>::iterator itAdl = adl.begin(); itAdl != adl.end() ; itAdl++) {
+
+      int32_t col = map.getMappingNoByRouterName((*itAdl).getName());
+      double cost = (*itAdl).getLinkCost();
+
+      if ((row >= 0 && row < static_cast<int32_t>(nRouters)) &&
+          (col >= 0 && col < static_cast<int32_t>(nRouters)))
+      {
+        g.edges[row][col] = cost;
+      }
+    }
+  }
+
+  // Links that do not have the same cost for both directions should have their
+  // costs corrected:
+  //
+  //   If the cost of one side of the link is 0, both sides of the link should have their cost
+  //   corrected to 0.
+  //
+  //   Otherwise, both sides of the link should use the larger of the two costs.
+  //
+  for (size_t row = 0; row < nRouters; ++row) {
+    for (size_t col = 0; col < nRouters; ++col) {
+      double toCost = g.edges[row][col];
+      double fromCost = g.edges[col][row];
+
+      if (fromCost != toCost) {
+        double correctedCost = 0.0;
+
+        if (toCost != 0 && fromCost != 0) {
+          // If both sides of the link are up, use the larger cost
+          correctedCost = std::max(toCost, fromCost);
+        }
+
+        _LOG_WARN("Cost between [" << row << "][" << col << "] and [" << col << "][" << row <<
+                  "] are not the same (" << toCost << " != " << fromCost << "). " <<
+                  "Correcting to cost: " << correctedCost);
+
+        g.edges[row][col] = correctedCost;
+        g.edges[col][row] = correctedCost;
+      }
+    }
+  }
+}
+
+void
 SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
 {
   ndn::Name originRouter;
@@ -238,7 +299,7 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
     ndn::Name thisRouter = m_confParam.getRouterName();
     //cout << thisRouter.toUri() << endl;
     //ymz
-    MGraph g(7, 8);
+    MGraph g(7);
     g.Dijkstra(std::stoi(thisRouter.toUri().substr(5)));  //根据本节点编号计算路由
     //print
     //g.printResult();

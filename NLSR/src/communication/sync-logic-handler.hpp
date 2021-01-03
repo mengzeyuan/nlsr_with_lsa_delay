@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <boost/cstdint.hpp>
 #include "ns3/nstime.h"   //ymz
+#include <route/map.hpp>   //ymz
 
 #include "test-access-control.hpp"
 
@@ -70,6 +71,10 @@ public:
 
   void
   createSyncSocket(const ndn::Name& syncPrefix);
+
+  //ymz
+  void
+  createTopology();
 
 private:
   void
