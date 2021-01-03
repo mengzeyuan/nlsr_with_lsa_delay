@@ -41,6 +41,8 @@
 #define _LOG_DEBUG_YMZ(v) NS_LOG_UNCOND(m_instanceId << " " << v)  //ymz
 #define _LOG_DEBUG_TIME(v) NS_LOG_UNCOND(v)  //ymz
 
+using namespace std;  //ymz
+
 namespace nlsr {
 
 int SyncLogicHandler::m_instanceCounter = 0;  //ymz
@@ -234,13 +236,13 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
   if (originRouter != m_confParam.getRouterPrefix()) {
 
     ndn::Name thisRouter = m_confParam.getRouterName();
-    cout << thisRouter.toUri() << endl;
+    //cout << thisRouter.toUri() << endl;
     //ymz
-    //MGraph g(6, 10);
-    //g.Dijkstra(std::stoi(thisRouter.toUri()[5]));  //根据本节点编号计算路由
+    MGraph g(7, 8);
+    g.Dijkstra(std::stoi(thisRouter.toUri().substr(5)));  //根据本节点编号计算路由
     //print
     //g.printResult();
-    //double centrality = g.calculateCentrality(std::stoi(routerName.toUri()[5]));  //根据目标节点编号计算中心度
+    double centrality = g.calculateCentrality(std::stoi(routerName.toUri().substr(5)));  //根据目标节点编号计算中心度
 
     update.getSequencingManager().writeLog();
 
@@ -248,6 +250,7 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
         _LOG_DEBUG("Received sync update with higher Name LSA sequence number than entry in LSDB");
 
         _LOG_DEBUG_YMZ("尝试加定时器：name lsa");
+        cout<< "节点" << thisRouter << "对节点" << routerName << "设置的name lsa定时器值为：" << 1.0/centrality << endl;
         ns3::Simulator::Schedule(ns3::Seconds (5.0), &SyncLogicHandler::expressInterestForLsa, this, update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo());
         //成了成了！
         
