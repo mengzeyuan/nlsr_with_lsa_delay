@@ -23,6 +23,7 @@ public:
     void Dispath(double dist[],int path[],int s[],int v);
     void Dijkstra(int v);
     void printResult();
+    void printAdjMatrix();
     double calculateCentrality(int node);
     void allocateAdjMatrix();
     void initMatrix();

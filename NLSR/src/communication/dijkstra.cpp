@@ -90,14 +90,23 @@ MGraph::freeAdjMatrix()
 void 
 MGraph::printResult()
 {
-    cout << "进入函数MGraph::printResult" << endl;
-    for(auto it = result.begin(); it != result.end(); ++it){
+    for(auto it = result.begin(); it != result.end(); ++it) {
         for(std::size_t j = 0; j < (*it).size(); ++j){
             cout<< (*it)[j] <<" ";
         }
         cout<<endl;
     }
-    cout << "完成函数MGraph::printResult" << endl;
+}
+
+void 
+MGraph::printAdjMatrix()
+{
+    for (size_t row = 0; row < n; ++row) {
+        for (size_t col = 0; col < n; ++col) {
+            cout << adjMatrix[row][col] << " ";
+        }
+        cout << endl;
+    }
 }
 
 double MGraph::calculateCentrality(int node){
@@ -114,6 +123,7 @@ double MGraph::calculateCentrality(int node){
 void 
 MGraph::Dispath(double dist[],int path[],int s[],int v)
 {
+    cout << "进入函数MGraph::Dispath" << endl;
     int i,k;
     for(i=0;i<n;i++)
         if(s[i]==1 && i!=v)
@@ -140,7 +150,6 @@ MGraph::Dispath(double dist[],int path[],int s[],int v)
             result.push_back(apath);
         }
     }
-    cout << "进入函数MGraph::Dispath" << endl;
 }
 
 void 
@@ -182,6 +191,7 @@ MGraph::Dijkstra(int v)
             path[j]=u;
         }
     }
+    cout << "结束函数MGraph::Dijkstra" << endl;
     Dispath(dist,path,s,v);
 }
 

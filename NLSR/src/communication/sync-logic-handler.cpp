@@ -220,19 +220,32 @@ SyncLogicHandler::onNsyncRemoval(const string& prefix)
 double
 SyncLogicHandler::calculateCentrality(int s, int i, Lsdb& m_lsdb)
 {
+  cout << "进入函数：SyncLogicHandler::calculateCentrality" << endl;
   Map map;
   map.createFromLsdb(m_lsdb);
   map.writeLog();
+  cout << "成功创建map对象" << endl;
 
   size_t nRouters = map.getMapSize();
+  cout << "nRouters = " << nRouters << endl;
     
   MGraph g(nRouters);
+  cout << "成功创建MGraph对象" << endl;
   g.allocateAdjMatrix();
   g.initMatrix();
   g.makeAdjMatrix(m_lsdb, map);
+  cout << "成功初始化临接矩阵" << endl;
 
-  cout << "成功创建MGraph对象g" << endl;
+  g.printAdjMatrix();
+  /* 结果：999999 200 200 200 200 
+       999999 999999 999999 999999 999999 
+       999999 999999 999999 999999 999999 
+       999999 999999 999999 999999 999999 
+       999999 999999 999999 999999 999999  */
+  //节点数有误，且临接矩阵不正确
+
   g.Dijkstra(s);  //根据本节点编号计算路由
+  cout << "成功计算最短路径" << endl;
   //print
   g.printResult();
   double centrality = g.calculateCentrality(i);  //根据目标节点编号计算中心度
