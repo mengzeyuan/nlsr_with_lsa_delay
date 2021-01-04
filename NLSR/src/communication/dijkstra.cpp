@@ -5,9 +5,9 @@ namespace nlsr
 void 
 MGraph::printResult()
 {
-    for(int i=0;i<result.size();++i){
-        for(int j=0;j<result[i].size();++j){
-            cout<<result[i][j]<<" ";
+    for(auto it = result.begin(); it != result.end(); ++it){
+        for(std::size_t j = 0; j < (*it).size(); ++j){
+            cout<< (*it)[j] <<" ";
         }
         cout<<endl;
     }
@@ -15,7 +15,7 @@ MGraph::printResult()
 
 double MGraph::calculateCentrality(int node){
     double sum=0;
-    for(int i=0;i<result.size();i++){
+    for(std::size_t i = 0; i < result.size(); i++){
         vector<int>::iterator it = find(result[i].begin(), result[i].end(), node);
         if (it != result[i].end()){
             sum++;
