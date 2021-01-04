@@ -73,8 +73,8 @@ public:
   createSyncSocket(const ndn::Name& syncPrefix);
 
   //ymz
-  void
-  createTopology();
+  double
+  calculateCentrality(int s, int i, Lsdb& m_lsdb);
 
 private:
   void
