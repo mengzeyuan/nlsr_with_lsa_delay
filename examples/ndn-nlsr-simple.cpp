@@ -106,7 +106,7 @@ main (int argc, char *argv[])
   // Consumer will request /prefix/0, /prefix/1, ...
   consumerHelper.SetPrefix("/prefix");
   consumerHelper.SetAttribute("Frequency", StringValue("1")); // 1 interest a second
-  consumerHelper.Install(nodes.Get(0));                        // first node
+  consumerHelper.Install(nodes.Get(1));                        // first node
   
   // Producer
   ndn::AppHelper producerHelper("ns3::ndn::Producer");
@@ -120,10 +120,10 @@ main (int argc, char *argv[])
   // ndn::GlobalRoutingHelper::CalculateAllPossibleRoutes();
 
   // 节点1 DOWN:40s UP:50s
-  //Simulator::Schedule(Seconds(20.0), ndn::LinkControlHelper::FailLink, nodes.Get(0), nodes.Get(1));
-  //Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::UpLink, nodes.Get(0), nodes.Get(1));
-  //Simulator::Schedule(Seconds(20.0), ndn::LinkControlHelper::FailLink, nodes.Get(2), nodes.Get(1));
-  //Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::UpLink, nodes.Get(2), nodes.Get(1));
+  Simulator::Schedule(Seconds(35.0), ndn::LinkControlHelper::FailLink, nodes.Get(1), nodes.Get(2));
+  Simulator::Schedule(Seconds(90.0), ndn::LinkControlHelper::UpLink, nodes.Get(1), nodes.Get(2));
+  Simulator::Schedule(Seconds(35.0), ndn::LinkControlHelper::FailLink, nodes.Get(2), nodes.Get(1));
+  Simulator::Schedule(Seconds(90.0), ndn::LinkControlHelper::UpLink, nodes.Get(2), nodes.Get(1));
 
   Simulator::Stop (Seconds (120.0));
 
@@ -131,7 +131,7 @@ main (int argc, char *argv[])
   //ndn::L3RateTracer::InstallAll (("my-nlsr-l3-rate-trace.txt"), Seconds (10));
   //L2RateTracer::InstallAll ((prefix + "-nlsr-l2-rate-trace.txt"));
   ndn::AppDelayTracer::InstallAll((prefix + "-nlsr-app-delays-trace.txt"));
-
+  
   Simulator::Run ();
   Simulator::Destroy ();
 

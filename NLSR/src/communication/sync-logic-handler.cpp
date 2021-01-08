@@ -236,7 +236,6 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
   if (originRouter != m_confParam.getRouterPrefix()) {
 
     ndn::Name thisRouter = m_confParam.getRouterName();
-    //cout << thisRouter.toUri() << endl;
     //ymz
     MGraph g(7, 8);
     g.Dijkstra(std::stoi(thisRouter.toUri().substr(5)));  //根据本节点编号计算路由
@@ -249,13 +248,14 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
     if (isLsaNew(originRouter, NameLsa::TYPE_STRING, update.getNameLsaSeqNo())) {
         _LOG_DEBUG("Received sync update with higher Name LSA sequence number than entry in LSDB");
 
-        _LOG_DEBUG_YMZ("尝试加定时器：name lsa");
-        cout<< "节点" << thisRouter << "对节点" << routerName << "设置的name lsa定时器值为：" << 1.0/centrality << endl;
-        ns3::Simulator::Schedule(ns3::Seconds (5.0), &SyncLogicHandler::expressInterestForLsa, this, update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo());
+        /* _LOG_DEBUG_YMZ("尝试加定时器：name lsa");
+        cout << ns3::Simulator::Now();
+        cout << "节点" << thisRouter << "对节点" << routerName << "设置的name lsa定时器值为：" << 1.0/centrality << endl;
+        ns3::Simulator::Schedule(ns3::Seconds (1.0/centrality), &SyncLogicHandler::expressInterestForLsa, this, update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo()); */
         //成了成了！
         
         //delay_second(5);
-        //expressInterestForLsa(update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo());  //original
+        expressInterestForLsa(update, NameLsa::TYPE_STRING, update.getNameLsaSeqNo());  //original
       }
 
       if (isLsaNew(originRouter, AdjLsa::TYPE_STRING, update.getAdjLsaSeqNo())) {
@@ -269,7 +269,11 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
           }
         }
         else {
-          expressInterestForLsa(update, AdjLsa::TYPE_STRING, update.getAdjLsaSeqNo());
+        _LOG_DEBUG_YMZ("尝试加定时器：adj lsa");
+        cout << ns3::Simulator::Now();
+        cout << "节点" << thisRouter << "对节点" << routerName << "设置的adj lsa定时器值为：" << 1.0/centrality << endl;
+        ns3::Simulator::Schedule(ns3::Seconds (1.0/centrality), &SyncLogicHandler::expressInterestForLsa, this, update, AdjLsa::TYPE_STRING, update.getAdjLsaSeqNo());
+        //expressInterestForLsa(update, AdjLsa::TYPE_STRING, update.getAdjLsaSeqNo());  //original
         }
       }
 
