@@ -179,7 +179,7 @@ void
 RoutingTable::scheduleRoutingTableCalculation(Nlsr& pnlsr)
 {
   if (pnlsr.getIsRouteCalculationScheduled() != true) {
-    _LOG_DEBUG_YMZ("Scheduling routing table calculation in " << m_routingCalcInterval);
+    //_LOG_DEBUG_YMZ("Scheduling routing table calculation in " << m_routingCalcInterval);
 
     m_scheduler.scheduleEvent(m_routingCalcInterval,
                               ndn::bind(&RoutingTable::calculate, this, ndn::ref(pnlsr)));

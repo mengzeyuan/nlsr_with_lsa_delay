@@ -90,7 +90,7 @@ HelloProtocol::sendScheduledInterest(uint32_t seconds)
 void
 HelloProtocol::scheduleInterest(uint32_t seconds)
 {
-  _LOG_DEBUG_YMZ("Scheduling HELLO Interests in " << ndn::time::seconds(seconds));
+  //_LOG_DEBUG_YMZ("Scheduling HELLO Interests in " << ndn::time::seconds(seconds));
 
   m_scheduler.scheduleEvent(ndn::time::seconds(seconds),
                             ndn::bind(&HelloProtocol::sendScheduledInterest, this, seconds));
@@ -170,7 +170,7 @@ HelloProtocol::processInterestTimedOut(const ndn::Interest& interest)
   uint32_t infoIntTimedOutCount =
     m_nlsr.getAdjacencyList().getTimedOutInterestCount(neighbor);
   _LOG_DEBUG("Status: " << status);
-  _LOG_DEBUG_YMZ("Info Interest Timed out: " << infoIntTimedOutCount);
+  //_LOG_DEBUG_YMZ("Info Interest Timed out: " << infoIntTimedOutCount);
   if ((infoIntTimedOutCount < m_nlsr.getConfParameter().getInterestRetryNumber())) {
     /* interest name: /<neighbor>/NLSR/INFO/<router> */
     ndn::Name interestName(neighbor);
@@ -183,7 +183,7 @@ HelloProtocol::processInterestTimedOut(const ndn::Interest& interest)
   else if ((status == Adjacent::STATUS_ACTIVE) &&
            (infoIntTimedOutCount == m_nlsr.getConfParameter().getInterestRetryNumber())) {
     m_nlsr.getAdjacencyList().setStatusOfNeighbor(neighbor, Adjacent::STATUS_INACTIVE);
-    _LOG_DEBUG_YMZ("Neighbor: " << neighbor << " status down.");
+    //_LOG_DEBUG_YMZ("Neighbor: " << neighbor << " status down.");
 
     m_nlsr.getLsdb().scheduleAdjLsaBuild();
   }

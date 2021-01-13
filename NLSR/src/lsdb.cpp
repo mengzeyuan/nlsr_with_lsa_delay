@@ -70,7 +70,7 @@ private:
 const ndn::Name::Component Lsdb::NAME_COMPONENT = ndn::Name::Component("lsdb");
 const ndn::time::seconds Lsdb::GRACE_PERIOD = ndn::time::seconds(10);
 const steady_clock::TimePoint Lsdb::DEFAULT_LSA_RETRIEVAL_DEADLINE = steady_clock::TimePoint::min();
-size_t intTypeLoc = 7;
+size_t intTypeLoc = 5;
 
 Lsdb::Lsdb(Nlsr& nlsr, ndn::Scheduler& scheduler, SyncLogicHandler& sync)
   : m_nlsr(nlsr)
@@ -606,11 +606,11 @@ Lsdb::buildAdjLsa()
     // fulfilled this request?
     if (adjBuildCount > 0) {
       if (m_nlsr.getAdjacencyList().getNumOfActiveNeighbor() > 0) {
-        _LOG_DEBUG_YMZ("Building and installing own Adj LSA");
+        //_LOG_DEBUG_YMZ("Building and installing own Adj LSA");
         buildAndInstallOwnAdjLsa();
       }
       else {
-        _LOG_DEBUG_YMZ("Removing own Adj LSA; no ACTIVE neighbors");
+        //_LOG_DEBUG_YMZ("Removing own Adj LSA; no ACTIVE neighbors");
         ndn::Name key = m_nlsr.getConfParameter().getRouterPrefix();
         key.append(AdjLsa::TYPE_STRING);
 
@@ -685,7 +685,7 @@ Lsdb::installAdjLsa(AdjLsa& alsa)
   ndn::time::seconds timeToExpire = m_lsaRefreshTime;
   AdjLsa* chkAdjLsa = findAdjLsa(alsa.getKey());
   if (chkAdjLsa == 0) {  //新节点上线？
-    _LOG_DEBUG_YMZ("New Adj LSA. Adding to LSDB");
+    //_LOG_DEBUG_YMZ("New Adj LSA. Adding to LSDB");
     _LOG_DEBUG("Adding Adj Lsa");
     alsa.writeLog();
     addAdjLsa(alsa);
@@ -701,7 +701,7 @@ Lsdb::installAdjLsa(AdjLsa& alsa)
   }
   else {  //节点INCTIVE？
     if (chkAdjLsa->getLsSeqNo() < alsa.getLsSeqNo()) {
-      _LOG_DEBUG_YMZ("Updated Adj LSA. Updating LSDB");
+      //_LOG_DEBUG_YMZ("Updated Adj LSA. Updating LSDB");
       _LOG_DEBUG("Deleting Adj Lsa");
       chkAdjLsa->writeLog();
       chkAdjLsa->setLsSeqNo(alsa.getLsSeqNo());
@@ -936,7 +936,7 @@ Lsdb::expressInterest(const ndn::Name& interestName, uint32_t timeoutCount,
   if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("name") == 0)
     m_tracer.NameLsaTrace(interestName.toUri(), "outNameLsaInterest", std::to_string(++m_outNlsaInterest), std::to_string(interest.wireEncode().size()));
   else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("adjacency") == 0)
-    m_tracer.NameLsaTrace(interestName.toUri(), "outAdjLsaInterest", std::to_string(++m_outLlsaInterest), std::to_string(interest.wireEncode().size()));
+    m_tracer.LinkLsaTrace(interestName.toUri(), "outAdjLsaInterest", std::to_string(++m_outLlsaInterest), std::to_string(interest.wireEncode().size()));
   else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("coordinate") == 0)
     m_tracer.NameLsaTrace(interestName.toUri(), "outCordLsaInterest", std::to_string(++m_outClsaInterest), std::to_string(interest.wireEncode().size()));
 #endif
@@ -952,7 +952,7 @@ Lsdb::processInterest(const ndn::Name& name, const ndn::Interest& interest)
   if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("name") == 0)
     m_tracer.NameLsaTrace(interestName.toUri(), "inNameLsaInterest", std::to_string(++m_inNlsaInterest), std::to_string(interest.wireEncode().size()));
   else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("adjacency") == 0)
-    m_tracer.NameLsaTrace(interestName.toUri(), "inAdjLsaInterest", std::to_string(++m_inLlsaInterest), std::to_string(interest.wireEncode().size()));
+    m_tracer.LinkLsaTrace(interestName.toUri(), "inAdjLsaInterest", std::to_string(++m_inLlsaInterest), std::to_string(interest.wireEncode().size()));
   else if (m_tracer.IsEnabled() && interestName.size() > intTypeLoc && interestName.get(intTypeLoc).toUri().compare("coordinate") == 0)
     m_tracer.NameLsaTrace(interestName.toUri(), "inCordLsaInterest", std::to_string(++m_inClsaInterest), std::to_string(interest.wireEncode().size()));
 #endif
@@ -1077,12 +1077,27 @@ Lsdb::onContentValidated(const ndn::shared_ptr<const ndn::Data>& data)
     std::string interestedLsType  = dataName[-2].toUri();
 
     if (interestedLsType == NameLsa::TYPE_STRING) {
+      //_LOG_DEBUG_YMZ("Received Name LSA" + dataName.toUri());
+      #ifdef NS3_NLSR_SIM
+      if (m_tracer.IsEnabled())
+        m_tracer.NameLsaTrace(data->getName().toUri(), "inNameLsaData", std::to_string(++m_inNlsaData), std::to_string(data->getContent().value_size() + data->getName().toUri().size()));
+      #endif
       processContentNameLsa(originRouter.append(interestedLsType), seqNo, dataContent);
     }
     else if (interestedLsType == AdjLsa::TYPE_STRING) {
+      //_LOG_DEBUG_YMZ("Received Adj LSA");
+      #ifdef NS3_NLSR_SIM
+      if (m_tracer.IsEnabled())
+        m_tracer.LinkLsaTrace(data->getName().toUri(), "inAdjLsaData", std::to_string(++m_inLlsaData), std::to_string(data->getContent().value_size() + data->getName().toUri().size()));
+      #endif
       processContentAdjacencyLsa(originRouter.append(interestedLsType), seqNo, dataContent);
     }
     else if (interestedLsType == CoordinateLsa::TYPE_STRING) {
+      //_LOG_DEBUG_YMZ("Received Coordinate LSA");
+      #ifdef NS3_NLSR_SIM
+      if (m_tracer.IsEnabled())
+        m_tracer.NameLsaTrace(data->getName().toUri(), "inNameLsaData", std::to_string(++m_inClsaData), std::to_string(data->getContent().value_size() + data->getName().toUri().size()));
+      #endif
       processContentCoordinateLsa(originRouter.append(interestedLsType), seqNo, dataContent);
     }
     else {
