@@ -106,24 +106,24 @@ main (int argc, char *argv[])
   // Consumer will request /prefix/0, /prefix/1, ...
   consumerHelper.SetPrefix("/prefix");
   consumerHelper.SetAttribute("Frequency", StringValue("1")); // 1 interest a second
-  consumerHelper.Install(nodes.Get(1));                        // first node
+  consumerHelper.Install(nodes.Get(0));                        // first node
   
   // Producer
   ndn::AppHelper producerHelper("ns3::ndn::Producer");
   // Producer will reply to all requests starting with /prefix
   producerHelper.SetPrefix("/prefix");
   producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
-  producerHelper.Install(nodes.Get(6)); // third node
+  producerHelper.Install(nodes.Get(3)); // third node
 
   //ymz
   // Calculate and install FIBs
   // ndn::GlobalRoutingHelper::CalculateAllPossibleRoutes();
 
   // 节点1 DOWN:40s UP:50s
-  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(1), nodes.Get(2));
-  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(1), nodes.Get(2));
-  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(2), nodes.Get(1));
-  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(2), nodes.Get(1));
+  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(0), nodes.Get(3));
+  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(0), nodes.Get(3));
+  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(0), nodes.Get(3));
+  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(0), nodes.Get(3));
 
   Simulator::Stop (Seconds (200.0));
 

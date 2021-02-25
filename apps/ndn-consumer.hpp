@@ -89,6 +89,10 @@ public:
   virtual void
   WillSendOutInterest(uint32_t sequenceNumber);
 
+  static int numOutInterests;
+  static int numInData;
+  static int numTimeOutInterests;
+
 public:
   typedef void (*LastRetransmittedInterestDataDelayCallback)(Ptr<App> app, uint32_t seqno, Time delay, int32_t hopCount);
   typedef void (*FirstInterestDataDelayCallback)(Ptr<App> app, uint32_t seqno, Time delay, uint32_t retxCount, int32_t hopCount);
