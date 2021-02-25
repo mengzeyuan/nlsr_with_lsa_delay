@@ -1068,7 +1068,8 @@ NlsrConfReader::BuildTopology()
 
         Link link (fromNode, srcNode.GetNodeId(), toNode, dstLink.GetNodeId());
         link.SetAttribute ("LinkCost", dstLink.GetLinkCost());
-        //link.SetAttribute ("DataRate", dstLink.GetBandwidth());  //设置带宽的语句加了注释，所以真实带宽是？
+        //link.SetAttribute ("DataRate", dstLink.GetBandwidth());   //设置带宽的语句加了注释，所以真实带宽是？
+        link.SetAttribute ("DataRate", "40Mbps");
         //link.SetAttribute ("OSPF", dstLink.GetMetric());
 
         //if (!dstLink.GetDelay().empty())

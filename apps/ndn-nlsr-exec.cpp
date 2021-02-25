@@ -42,7 +42,7 @@ NlsrExec::NlsrExec(::ndn::KeyChain& keyChain, std::string& nlsrConf)
   : m_ioService(m_face.getIoService())
   , m_scheduler(m_ioService)
   , m_keyChain(keyChain)
-  , m_nlsr(m_ioService, m_scheduler, m_face, m_keyChain)
+  , m_nlsr(m_ioService, m_scheduler, m_face, m_keyChain)   //在这里定义了nlsr对象
 {
   m_nlsr.setConfFileName(nlsrConf);
   nlsr::ConfFileProcessor configProcessor(m_nlsr, m_nlsr.getConfFileName());
@@ -54,6 +54,7 @@ NlsrExec::NlsrExec(::ndn::KeyChain& keyChain, std::string& nlsrConf)
 void
 NlsrExec::run()
 {
+  cout<<"进入NlsrExec::run()"<<endl;
   m_nlsr.initialize();
 
   try {

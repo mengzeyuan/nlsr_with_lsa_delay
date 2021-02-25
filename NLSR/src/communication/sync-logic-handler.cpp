@@ -237,11 +237,11 @@ SyncLogicHandler::processUpdateFromSync(const SyncUpdate& update)
 
     ndn::Name thisRouter = m_confParam.getRouterName();
     //ymz
-    MGraph g(7, 8);
+    /* MGraph g(7, 8);
     g.Dijkstra(std::stoi(thisRouter.toUri().substr(5)));  //根据本节点编号计算路由
     //print
     //g.printResult();
-    double centrality = g.calculateCentrality(std::stoi(routerName.toUri().substr(5)));  //根据目标节点编号计算中心度
+    double centrality = g.calculateCentrality(std::stoi(routerName.toUri().substr(5)));  //根据目标节点编号计算中心度 */
 
     update.getSequencingManager().writeLog();
 

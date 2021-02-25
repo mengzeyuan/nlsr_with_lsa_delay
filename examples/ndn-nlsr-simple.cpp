@@ -87,7 +87,7 @@ main (int argc, char *argv[])
 
   // multicast可以实现向多个接口转发兴趣包
   //ndn::StrategyChoiceHelper::InstallAll("/", "ndn:/localhost/nfd/strategy/multicast");
-  // BestRouteStrategy2测试（链路中断后不再切换路径）
+  // BestRouteStrategy2测试（链路中断后可以切换路径）
   //ndn::StrategyChoiceHelper::InstallAll("/", "ndn:/localhost/nfd/strategy/best-route");
   // ncc策略测试
   ndn::StrategyChoiceHelper::InstallAll("/", "ndn:/localhost/nfd/strategy/ncc");
@@ -120,10 +120,10 @@ main (int argc, char *argv[])
   // ndn::GlobalRoutingHelper::CalculateAllPossibleRoutes();
 
   // 节点1 DOWN:40s UP:50s
-  /* Simulator::Schedule(Seconds(100.0), ndn::LinkControlHelper::FailLink, nodes.Get(1), nodes.Get(2));
-  Simulator::Schedule(Seconds(200.0), ndn::LinkControlHelper::UpLink, nodes.Get(1), nodes.Get(2));
-  Simulator::Schedule(Seconds(100.0), ndn::LinkControlHelper::FailLink, nodes.Get(2), nodes.Get(1));
-  Simulator::Schedule(Seconds(200.0), ndn::LinkControlHelper::UpLink, nodes.Get(2), nodes.Get(1)); */
+  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(1), nodes.Get(2));
+  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(1), nodes.Get(2));
+  Simulator::Schedule(Seconds(40.0), ndn::LinkControlHelper::FailLink, nodes.Get(2), nodes.Get(1));
+  Simulator::Schedule(Seconds(80.0), ndn::LinkControlHelper::UpLink, nodes.Get(2), nodes.Get(1));
 
   Simulator::Stop (Seconds (200.0));
 

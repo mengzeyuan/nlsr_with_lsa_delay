@@ -165,6 +165,7 @@ private:
   EventId m_printEvent;
 
   mutable std::map<shared_ptr<const Face>, std::tuple<Stats, Stats, Stats, Stats>> m_stats;
+  // Stats是一个结构体，基本只用到了前两个Stats，第一个保存包的数量，第二个保存包的大小（字节数）
 };
 
 } // namespace ndn

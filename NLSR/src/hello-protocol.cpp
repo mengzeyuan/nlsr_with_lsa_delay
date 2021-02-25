@@ -65,7 +65,7 @@ HelloProtocol::expressInterest(const ndn::Name& interestName, uint32_t seconds)
 }
 
 void
-HelloProtocol::sendScheduledInterest(uint32_t seconds)
+HelloProtocol::sendScheduledInterest(uint32_t seconds) //发送第一个hello之后，用InfoInterestInterval发送其他hello包
 {
   std::list<Adjacent> adjList = m_nlsr.getAdjacencyList().getAdjList();
   for (std::list<Adjacent>::iterator it = adjList.begin(); it != adjList.end();

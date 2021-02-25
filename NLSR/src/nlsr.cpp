@@ -172,6 +172,7 @@ Nlsr::setInfoInterestFilter()
 {
   ndn::Name name(m_confParam.getRouterPrefix());
   _LOG_DEBUG("Setting interest filter for name: " << name);
+  //cout << "Setting info interest filter for name: " << name.toUri() << endl;
   getNlsrFace().setInterestFilter(name,
                                   std::bind(&HelloProtocol::processInterest,
                                             &m_helloProtocol, _1, _2),
@@ -188,6 +189,7 @@ Nlsr::setLsaInterestFilter()
   name.append(m_confParam.getSiteName());
   name.append(m_confParam.getRouterName());
   _LOG_DEBUG("Setting interest filter for name: " << name);
+  //cout << "Setting lsa interest filter for name: " << name.toUri() << endl;
   getNlsrFace().setInterestFilter(name,
                                   std::bind(&Lsdb::processInterest,
                                             &m_nlsrLsdb, _1, _2),

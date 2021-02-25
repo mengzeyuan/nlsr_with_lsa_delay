@@ -44,6 +44,7 @@ NlsrRunner::NlsrRunner(std::string& configFileName, bool isDaemonProcess)
 void
 NlsrRunner::run()
 {
+  //cout << "进入NlsrRunner::run()" << endl;  //不是从这里开始运行nlsr的
   ConfFileProcessor configProcessor(m_nlsr, m_nlsr.getConfFileName());
 
   if (!configProcessor.processConfFile()) {
