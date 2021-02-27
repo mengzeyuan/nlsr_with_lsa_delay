@@ -54,7 +54,6 @@ NlsrExec::NlsrExec(::ndn::KeyChain& keyChain, std::string& nlsrConf)
 void
 NlsrExec::run()
 {
-  cout<<"进入NlsrExec::run()"<<endl;
   m_nlsr.initialize();
 
   try {

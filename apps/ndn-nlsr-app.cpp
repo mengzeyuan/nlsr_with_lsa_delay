@@ -56,7 +56,6 @@ NlsrApp::Initialize(std::string& nodeConfig) {
 void
 NlsrApp::StartApplication ()
 {
-  cout << "进入NlsrApp::StartApplication ()" << endl;
   NS_LOG_FUNCTION_NOARGS ();
   m_instance.reset(new ndn::NlsrExec(ndn::StackHelper::getKeyChain(), m_nodeConfigFile));
   //std::cout << "ZhangYu 2019-6-1, ndn::StackHelper::getKeyChain():" << m_nodeConfigFile << std::endl;

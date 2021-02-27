@@ -43,35 +43,6 @@ class Nlsr;
 class HelloProtocol
 {
 public:
-/* //env类
-  class Env
-  {
-  public:
-    uint32_t reset()
-    {
-      return 10;
-    }
-    bool step(const int &action, double &reward)
-    {
-      //进行action，改变环境
-      switch (action) {
-        case 0:
-            
-        break;
-
-        case 1:
-            
-        break;
-
-        default:
-        break;
-    }
-    //得到reward
-    }
-  private:
-
-  }; */
-
   HelloProtocol(Nlsr& nlsr, ndn::Scheduler& scheduler)
     : m_nlsr(nlsr)
     , m_scheduler(scheduler)
